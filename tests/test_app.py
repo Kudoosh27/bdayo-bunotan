@@ -158,7 +158,7 @@ def test_registration_requires_session_csrf_token():
     assert b"Your one-time lookup details" in response.data
 
 
-def test_registration_endpoint_is_rate_limited():
+def test_registration_rate_limit_counts_submissions_not_page_views():
     application = create_app(
         {
             "SECRET_KEY": "rate-limit-test-secret",
@@ -166,20 +166,56 @@ def test_registration_endpoint_is_rate_limited():
             "SQLALCHEMY_DATABASE_URI": "sqlite://",
         }
     )
+    application.test_client_class = CSRFTestClient
     with application.app_context():
         db.create_all()
+        event, church, _ = _seed_event()
+        event_id, church_id = str(event.id), str(church.id)
     client = application.test_client()
-    for _ in range(10):
-        assert client.get("/register", environ_overrides={"REMOTE_ADDR": "192.0.2.77"}).status_code == 200
-    assert client.get(
-        "/register", environ_overrides={"REMOTE_ADDR": "192.0.2.77"}
+    for _ in range(120):
+        assert client.get(
+            "/register", environ_overrides={"REMOTE_ADDR": "192.0.2.77"}
+        ).status_code == 200
+    with application.app_context():
+        assert (
+            db.session.get(
+                RateLimitAttempt, rate_limit_key("registration", "192.0.2.77")
+            )
+            is None
+        )
+
+    for index in range(100):
+        response = client.post(
+            "/register",
+            data={
+                "event_id": event_id,
+                "church_id": church_id,
+                "full_name": f"Rate Limited Registrant {index}",
+                "participation_confirmed": "yes",
+                "privacy_consent": "yes",
+            },
+            environ_overrides={"REMOTE_ADDR": "192.0.2.77"},
+        )
+        assert response.status_code == 200
+        assert b"Your one-time lookup details" in response.data
+    assert client.post(
+        "/register",
+        data={
+            "event_id": event_id,
+            "church_id": church_id,
+            "full_name": "Rate Limited Registrant 101",
+            "participation_confirmed": "yes",
+            "privacy_consent": "yes",
+        },
+        environ_overrides={"REMOTE_ADDR": "192.0.2.77"},
     ).status_code == 429
     with application.app_context():
         attempt = db.session.get(
             RateLimitAttempt, rate_limit_key("registration", "192.0.2.77")
         )
-        assert attempt.count == 10
+        assert attempt.count == 100
         assert attempt.locked_until is not None
+        assert Participant.query.filter_by(event_id=uuid.UUID(event_id)).count() == 100
 
 
 def test_login_lockout_is_persisted_per_ip(app, client):

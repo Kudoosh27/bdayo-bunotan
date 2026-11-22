@@ -74,7 +74,7 @@ def contact():
 
 
 @bp.route("/register", methods=["GET", "POST"])
-@rate_limit("registration", 10, 3600, 3600)
+@rate_limit("registration", 100, 3600, 3600, methods=("POST",))
 def register():
     events, churches = get_registration_options()
     credentials = None

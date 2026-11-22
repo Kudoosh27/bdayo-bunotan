@@ -19,10 +19,12 @@ def rate_limit_key(namespace, identity):
     ).hexdigest()
 
 
-def rate_limit(namespace, maximum, window_seconds, lock_seconds):
+def rate_limit(namespace, maximum, window_seconds, lock_seconds, methods=None):
     def decorate(view):
         @wraps(view)
         def wrapped(*args, **kwargs):
+            if methods is not None and request.method not in methods:
+                return view(*args, **kwargs)
             if not consume_rate_limit(
                 namespace,
                 request.remote_addr or "",
