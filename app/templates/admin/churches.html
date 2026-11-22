@@ -1,0 +1,43 @@
+{% extends "admin/layout.html" %}
+{% block title %}Churches · District Youth Bunotan{% endblock %}
+{% block admin_content %}
+<section class="page-heading">
+  <p class="eyebrow">Organization management</p>
+  <h1>Churches</h1>
+  <p class="lead">Church records are deactivated rather than deleted so registration and audit history remain intact. Deactivation disables associated leader accounts.</p>
+</section>
+<form class="form-card compact admin-create-card" method="post" action="{{ url_for('admin.create_church') }}">
+  <h2>Add a church</h2>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <label for="church-name">Church name</label>
+  <input id="church-name" name="name" maxlength="200" required>
+  <button class="button button-primary" type="submit">Add church</button>
+</form>
+<section class="table-section">
+  <h2>Church directory</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Church</th><th>Status</th><th>Leaders</th><th>Manage</th></tr></thead>
+      <tbody>
+      {% for church in churches %}
+        <tr>
+          <td>
+            <form id="church-{{ church.id }}" class="church-edit-form" method="post" action="{{ url_for('admin.update_church', church_id=church.id) }}" {% if church.active %}data-confirm="Save this church's settings? Turning off active status disables all associated leader accounts."{% endif %}>
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <label class="sr-only" for="church-name-{{ church.id }}">Church name</label>
+              <input id="church-name-{{ church.id }}" name="name" maxlength="200" value="{{ church.name }}" required>
+              <label class="check-row"><input type="checkbox" name="active" value="yes" {% if church.active %}checked{% endif %}><span>Active</span></label>
+            </form>
+          </td>
+          <td><span class="status">{{ "Active" if church.active else "Inactive" }}</span></td>
+          <td>{{ leader_counts.get(church.id, 0) }}</td>
+          <td><button class="button button-secondary button-small" type="submit" form="church-{{ church.id }}">Save</button></td>
+        </tr>
+      {% else %}
+        <tr><td colspan="4">No churches have been added.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Registration saved · District Youth Bunotan{% endblock %}
+{% block content %}
+<section class="page-heading">
+  <p class="eyebrow">Registration received</p>
+  <h1>You're on the list, {{ participant.full_name }}.</h1>
+  <p class="lead">Your submission for {{ event.name }} is pending administrator verification.</p>
+</section>
+<section class="credential-card confirmation-card" aria-labelledby="credentials-heading">
+  <p class="eyebrow">Keep this private</p>
+  <h2 id="credentials-heading">Your one-time lookup details</h2>
+  <p>Save both details somewhere safe. The PIN is displayed only on this confirmation page and cannot be recovered from your account.</p>
+  <dl class="credential-list">
+    <div><dt>Registration reference</dt><dd>{{ credentials.reference }}</dd></div>
+    <div><dt>Private PIN</dt><dd>{{ credentials.pin }}</dd></div>
+  </dl>
+  <p class="form-note">Your PIN is stored as a secure hash. Do not share it with another participant or post it publicly.</p>
+  <div class="actions">
+    <a class="button button-primary" href="{{ url_for('public.lookup') }}">Go to recipient lookup</a>
+    <a class="button button-secondary" href="{{ url_for('public.home') }}">Return home</a>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>{% block title %}District Youth Bunotan{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+  {% block head %}{% endblock %}
+  <script defer src="{{ url_for('static', filename='js/theme.js') }}"></script>
+  <script defer src="{{ url_for('static', filename='vendor/lucide.min.js') }}"></script>
+  <script defer src="{{ url_for('static', filename='js/icons.js') }}"></script>
+  <script defer src="{{ url_for('static', filename='js/confirm.js') }}"></script>
+  <script defer src="{{ url_for('static', filename='js/table-filter.js') }}"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <a class="brand" href="{{ url_for('public.home') }}">
+      <span class="brand-mark" aria-hidden="true">B</span>
+      <span>District Youth <strong>Bunotan</strong></span>
+    </a>
+    <nav aria-label="Main navigation">
+      <a href="{{ url_for('public.mechanics') }}"><i data-lucide="circle-help" aria-hidden="true"></i>How it works</a>
+      <a href="{{ url_for('public.gift_guidelines') }}"><i data-lucide="gift" aria-hidden="true"></i>Gift guide</a>
+      <a href="{{ url_for('public.faq') }}"><i data-lucide="messages-square" aria-hidden="true"></i>FAQ</a>
+      <a href="{{ url_for('public.privacy') }}"><i data-lucide="shield-check" aria-hidden="true"></i>Privacy</a>
+      <a href="{{ url_for('public.contact') }}"><i data-lucide="mail" aria-hidden="true"></i>Contact</a>
+      <a href="{{ url_for('public.register') }}"><i data-lucide="user-round-plus" aria-hidden="true"></i>Register</a>
+      <a href="{{ url_for('public.lookup') }}"><i data-lucide="key-round" aria-hidden="true"></i>My Secret Assignment</a>
+      {% if current_user.is_authenticated %}
+        {% if current_user.role == "admin" %}
+          <a href="{{ url_for('admin.dashboard') }}"><i data-lucide="layout-dashboard" aria-hidden="true"></i>Admin</a>
+        {% else %}
+          <a href="{{ url_for('leader.dashboard') }}"><i data-lucide="church" aria-hidden="true"></i>Church portal</a>
+        {% endif %}
+        <form class="inline" method="post" action="{{ url_for('auth.logout') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="nav-button" type="submit"><i data-lucide="log-out" aria-hidden="true"></i>Sign out</button>
+        </form>
+      {% else %}
+        <a href="{{ url_for('auth.login') }}"><i data-lucide="log-in" aria-hidden="true"></i>Staff sign in</a>
+      {% endif %}
+      <button class="theme-toggle" type="button" aria-label="Switch color theme" aria-pressed="false"><i data-lucide="moon-star" aria-hidden="true"></i></button>
+    </nav>
+  </header>
+  <main id="main" class="site-main">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="flash-stack" aria-live="polite">
+          {% for category, message in messages %}
+            <p class="notice notice-{{ category }}" role="status">{{ message }}</p>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+  </main>
+  <footer class="site-footer">
+    <p>District Youth Bunotan <span aria-hidden="true">·</span> Keep your PIN private.</p>
+  </footer>
+  {% block scripts %}{% endblock %}
+  <dialog id="confirm-dialog" class="confirm-dialog" aria-labelledby="confirm-dialog-title">
+    <div class="confirm-dialog-content">
+      <h2 id="confirm-dialog-title">Confirm this action</h2>
+      <p data-confirm-message></p>
+      <div class="actions">
+        <button class="button button-secondary" type="button" data-confirm-cancel>Cancel</button>
+        <button class="button button-danger" type="button" data-confirm-accept>Continue</button>
+      </div>
+    </div>
+  </dialog>
+</body>
+</html>

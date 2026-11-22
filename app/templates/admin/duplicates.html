@@ -1,0 +1,35 @@
+{% extends "admin/layout.html" %}
+{% block title %}Duplicate review · District Youth Bunotan{% endblock %}
+{% block admin_content %}
+<section class="page-heading">
+  <p class="eyebrow">Data quality</p>
+  <h1>Active duplicate records</h1>
+  <p class="lead">Potential duplicate names are grouped by event and church. Review and correct records before the drawing is prepared.</p>
+</section>
+{% if duplicate_groups %}
+<div class="table-wrap">
+  <table>
+    <thead><tr><th>Event</th><th>Church</th><th>Normalized name</th><th>Records</th></tr></thead>
+    <tbody>{% for group in duplicate_groups %}
+      <tr>
+        <td>{{ group[4] }}</td><td>{{ group[5] }}</td><td>{{ group[2] }}</td><td>{{ group[3] }}</td>
+      </tr>
+    {% endfor %}</tbody>
+  </table>
+</div>
+<h2 class="table-section">Records to review</h2>
+<div class="table-wrap">
+  <table>
+    <thead><tr><th>Name</th><th>Event</th><th>Church</th><th>Status</th><th>Review</th></tr></thead>
+    <tbody>{% for person in participants %}
+      <tr>
+        <td>{{ person.full_name }}</td><td>{{ person.event.name }}</td><td>{{ person.church.name }}</td><td>{{ person.status }}</td>
+        <td><a href="{{ url_for('admin.participants', event_id=person.event_id, q=person.name_key, duplicates=1) }}">Open records</a></td>
+      </tr>
+    {% endfor %}</tbody>
+  </table>
+</div>
+{% else %}
+<p class="notice" role="status">No active duplicate records were found.</p>
+{% endif %}
+{% endblock %}

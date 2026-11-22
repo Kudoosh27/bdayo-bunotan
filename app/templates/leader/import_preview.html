@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Import preview · District Youth Bunotan{% endblock %}
+{% block content %}
+<section class="page-heading">
+  <p class="eyebrow">Church youth leader</p>
+  <h1>Import preview</h1>
+  <p class="lead">Review every row. Errors and duplicates are skipped; eligible participants are submitted as pending only.</p>
+  <p>Event: <strong>{{ event.name }}</strong></p>
+</section>
+{% if credentials_list %}
+<section class="credential-card">
+  <h2>One-time participant credentials</h2>
+  <p>Save and securely deliver these details now. The PINs will not be available again after you leave this page.</p>
+  <div class="table-wrap"><table><thead><tr><th>Name</th><th>Reference</th><th>PIN</th></tr></thead><tbody>
+  {% for item in credentials_list %}<tr><td>{{ item.name }}</td><td>{{ item.reference }}</td><td>{{ item.pin }}</td></tr>{% endfor %}
+  </tbody></table></div>
+</section>
+{% endif %}
+{% if completed %}
+  <p class="notice" role="status">Import complete. {{ credentials_list|length }} eligible participant(s) were submitted as pending.</p>
+{% else %}
+  <p class="notice" role="status">{{ eligible_count }} row(s) are eligible to submit.</p>
+{% endif %}
+<div class="table-wrap">
+  <table>
+    <thead><tr><th>Row</th><th>Participant</th><th>Result</th><th>Validation messages</th></tr></thead>
+    <tbody>
+    {% for row in rows %}
+      <tr>
+        <td>{{ row.row_number }}</td>
+        <td>{{ row.full_name }}</td>
+        <td>{{ row.status|replace('_',' ') }}</td>
+        <td>{% for message in row.errors %}<div>{{ message }}</div>{% endfor %}{% for message in row.warnings %}<div>{{ message }}</div>{% endfor %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% if not completed %}
+<section class="split-grid">
+  <form class="form-card" method="post" enctype="multipart/form-data" action="{{ url_for('leader.confirm_import') }}">
+    <h2>Submit eligible rows</h2>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="event_id" value="{{ event.id }}">
+    <input type="hidden" name="participation_confirmed" value="yes">
+    <input type="hidden" name="privacy_consent" value="yes">
+    <label for="confirm-file">Select the same CSV file again to confirm</label>
+    <input id="confirm-file" name="file" type="file" accept=".csv,text/csv" required>
+    <button class="button button-primary" type="submit">Recheck and submit eligible rows</button>
+  </form>
+  <form class="form-card" method="post" enctype="multipart/form-data" action="{{ url_for('leader.import_error_report') }}">
+    <h2>Download the error report</h2>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="event_id" value="{{ event.id }}">
+    <input type="hidden" name="participation_confirmed" value="yes">
+    <input type="hidden" name="privacy_consent" value="yes">
+    <label for="report-file">Select the same CSV file to create the report</label>
+    <input id="report-file" name="file" type="file" accept=".csv,text/csv" required>
+    <button class="button button-secondary" type="submit">Download CSV error report</button>
+  </form>
+</section>
+{% endif %}
+<p><a href="{{ url_for('leader.dashboard') }}">Return to your church portal</a></p>
+{% endblock %}

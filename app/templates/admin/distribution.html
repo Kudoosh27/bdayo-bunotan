@@ -1,0 +1,98 @@
+{% extends "admin/layout.html" %}
+{% block title %}Distribution packets · {{ event.name }}{% endblock %}
+{% block admin_content %}
+<section class="page-heading">
+  <p class="eyebrow">Confidential distribution · {{ event.status|replace('_',' ') }}</p>
+  <h1>{{ event.name }} packets</h1>
+  <p class="lead">Generate sealed-envelope print packets by church, record printing and handoff, and track each giver's acknowledgment. Printable HTML packets are stored privately and require administrator access.</p>
+  {% if active_draw %}
+  <p class="muted">Active draw version {{ active_draw.version }} · {{ active_draw.participant_count }} participants</p>
+  {% else %}
+  <p class="notice notice-danger" role="alert">There is no active finalized draw.</p>
+  {% endif %}
+</section>
+{% if event.status != "distribution" %}
+<p class="notice notice-warning" role="status">Packets may be prepared now but cannot be handed off until the event enters distribution. Generating a packet rotates each included participant's PIN; the new PIN appears only in that participant's confidential insert.</p>
+{% else %}
+<p class="notice notice-warning" role="status">Treat print views and paper copies as confidential. Each packet generation or replacement rotates the included participants' PINs; reopening an existing packet does not rotate them again.</p>
+{% endif %}
+{% for church in churches %}
+{% set batch = latest_batches.get(church.id) %}
+<section class="distribution-church">
+  <div class="section-heading">
+    <div><p class="eyebrow">Church packet</p><h2>{{ church.name }}</h2></div>
+    {% if batch %}
+    <span class="status">{{ batch.status }} · packet v{{ batch.version }}</span>
+    {% endif %}
+  </div>
+  {% if batch %}
+  <p class="muted">
+    Generated {{ batch.packet_generated_at.strftime('%Y-%m-%d %H:%M UTC') if batch.packet_generated_at else "not available" }}
+    · Printed {{ batch.print_count }} time(s)
+    {% if batch.distributed_at %} · Distributed {{ batch.distributed_at.strftime('%Y-%m-%d %H:%M UTC') }}{% endif %}
+    {% if batch.acknowledged_at %} · Fully acknowledged {{ batch.acknowledged_at.strftime('%Y-%m-%d %H:%M UTC') }}{% endif %}
+  </p>
+  {% if batch.status != "void" %}
+  <div class="actions">
+    <a class="button button-primary" href="{{ url_for('admin.download_distribution_packet', batch_id=batch.id) }}" target="_blank" rel="noopener">Open printable church packet</a>
+    <form method="post" action="{{ url_for('admin.distribution_packet_printed', batch_id=batch.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="button button-secondary" type="submit">{% if batch.printed_at %}Record another print{% else %}Record print{% endif %}</button>
+    </form>
+    {% if batch.status == "prepared" and batch.printed_at %}
+    <form method="post" action="{{ url_for('admin.distribution_packet_distributed', batch_id=batch.id) }}" data-confirm="Record that this church packet has been handed off?">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="button button-secondary" type="submit">Record distribution</button>
+    </form>
+    {% endif %}
+  </div>
+  {% else %}
+  <p class="notice notice-danger" role="status">This packet was invalidated by a replacement or draw change. Do not print or distribute it.</p>
+  {% endif %}
+  {% if batch.replacement_reason %}
+  <p><strong>Replacement reason:</strong> {{ batch.replacement_reason }}</p>
+  {% endif %}
+  {% set records = records_by_batch.get(batch.id, []) %}
+  {% if records %}
+  <label class="table-search">Filter this church's records<input type="search" data-table-search="distribution-records-{{ batch.id }}" autocomplete="off"></label>
+  <div class="table-wrap">
+    <table id="distribution-records-{{ batch.id }}" class="distribution-record-table">
+      <thead><tr><th>Giver</th><th>Acknowledgment</th><th>Print card</th><th>Action</th></tr></thead>
+      <tbody>
+      {% for item in records %}
+        <tr>
+          <td>{{ item.giver.full_name }}</td>
+          <td>{{ item.record.status }}{% if item.record.acknowledged_at %}<br><span class="muted">{{ item.record.acknowledged_at.strftime('%Y-%m-%d %H:%M UTC') }}</span>{% endif %}</td>
+          <td>{% if batch.status != "void" %}<a href="{{ url_for('admin.download_distribution_card', batch_id=batch.id, record_id=item.record.id) }}" target="_blank" rel="noopener">Open printable sealed card</a>{% else %}Invalidated{% endif %}</td>
+          <td>
+            {% if batch.status == "distributed" and item.record.status == "pending" %}
+            <form method="post" action="{{ url_for('admin.distribution_record_acknowledged', batch_id=batch.id, record_id=item.record.id) }}" data-confirm="Record acknowledgment for this giver?">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="button button-secondary button-small" type="submit">Record acknowledgment</button>
+            </form>
+            {% else %}—{% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+  {% endif %}
+  {% if event.status in ["drawing_finalized","distribution"] %}
+  <form class="form-card compact packet-generate-form" method="post" action="{{ url_for('admin.generate_distribution_packet', event_id=event.id, church_id=church.id) }}" data-confirm="{% if batch %}Replace this church packet? The previous packet will be invalidated and PINs will rotate again.{% else %}Generate this church's confidential packet? PINs will rotate and appear in the private inserts.{% endif %}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {% if batch %}
+    <label for="replacement-reason-{{ church.id }}">Reason for replacing packet v{{ batch.version }}</label>
+    <textarea id="replacement-reason-{{ church.id }}" name="reason" maxlength="2000" required></textarea>
+    <button class="button button-secondary" type="submit">Generate replacement packet</button>
+    {% else %}
+    <button class="button button-primary" type="submit">Generate sealed-envelope packet</button>
+    {% endif %}
+  </form>
+  {% endif %}
+</section>
+{% else %}
+<p class="empty-state">No approved assignments are associated with an active church.</p>
+{% endfor %}
+{% endblock %}

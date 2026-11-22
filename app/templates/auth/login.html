@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Staff sign in · District Youth Bunotan{% endblock %}
+{% block content %}
+<section class="page-heading">
+  <p class="eyebrow">Authorized staff</p>
+  <h1>Welcome back</h1>
+</section>
+<form class="form-card narrow" method="post">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <label for="username">Username</label>
+  <input id="username" name="username" maxlength="120" autocomplete="username" required>
+  <label for="password">Password</label>
+  <input id="password" name="password" type="password" autocomplete="current-password" required>
+  <button class="button button-primary" type="submit">Sign in</button>
+</form>
+{% endblock %}

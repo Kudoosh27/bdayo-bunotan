@@ -1,0 +1,44 @@
+{% extends "admin/layout.html" %}
+{% block title %}Staff &amp; leaders · District Youth Bunotan{% endblock %}
+{% block admin_content %}
+<section class="page-heading">
+  <p class="eyebrow">Access management</p>
+  <h1>Staff and church leaders</h1>
+  <p class="lead">Create accounts with <code>flask create-admin</code> or <code>flask create-user</code>. Reassign existing leader accounts to an active church and manage staff access here.</p>
+</section>
+<div class="table-wrap">
+  <table>
+    <thead><tr><th>Username</th><th>Role</th><th>Church scope</th><th>Access</th></tr></thead>
+    <tbody>
+    {% for user in users %}
+      <tr>
+        <td>{{ user.username }}</td>
+        <td>{{ user.role|replace('_',' ') }}</td>
+        <td>
+        {% if user.role == "leader" %}
+          <form id="user-{{ user.id }}" class="user-access-form" method="post" action="{{ url_for('admin.update_user_access', user_id=user.id) }}" {% if user.active %}data-confirm="Save this leader's church assignment and account access?"{% endif %}>
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <label class="sr-only" for="church-{{ user.id }}">Assigned church</label>
+            <select id="church-{{ user.id }}" name="church_id" required {% if not churches %}disabled{% endif %}>
+              {% for church in churches %}<option value="{{ church.id }}" {% if user.church_id == church.id %}selected{% endif %}>{{ church.name }}</option>{% endfor %}
+            </select>
+          </form>
+        {% else %}
+          District administration
+          <form id="user-{{ user.id }}" class="user-access-form" method="post" action="{{ url_for('admin.update_user_access', user_id=user.id) }}" {% if user.active %}data-confirm="Change this administrator account's active status?"{% endif %}>
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          </form>
+        {% endif %}
+        </td>
+        <td>
+          <label class="check-row"><input form="user-{{ user.id }}" type="checkbox" name="active" value="yes" {% if user.active %}checked{% endif %}><span>{{ "Enabled" if user.active else "Disabled" }}</span></label>
+          <button class="button button-secondary button-small" type="submit" form="user-{{ user.id }}" {% if user.role == "leader" and not churches %}disabled{% endif %}>Save access</button>
+        </td>
+      </tr>
+    {% else %}
+      <tr><td colspan="4">No staff accounts.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

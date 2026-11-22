@@ -1,0 +1,68 @@
+{% extends "admin/layout.html" %}
+{% block title %}District draw · {{ event.name }}{% endblock %}
+{% block admin_content %}
+<section class="page-heading">
+  <p class="eyebrow">Centralized district draw · {{ event.status|replace('_',' ') }}</p>
+  <h1>{{ event.name }} draw control</h1>
+  <p class="lead">Review the pre-draw checklist and validation report. Assignment details are never displayed here.</p>
+  <p><a href="{{ url_for('admin.participants', event_id=event.id) }}">Review participant records and status history</a></p>
+</section>
+{% if active_draw %}
+<section class="credential-card">
+  <p class="eyebrow">Finalized and locked</p>
+  <h2>Draw version {{ active_draw.version }} is active</h2>
+  <p>{{ active_draw.participant_count }} approved participants · finalized {{ active_draw.created_at.strftime('%Y-%m-%d %H:%M UTC') }}</p>
+  <p>Assignments remain private. To run a replacement before distribution, supersede this draw with a reason; all prepared distribution batches will be voided.</p>
+</section>
+<form class="form-card" method="post" action="{{ url_for('admin.cancel_finalized_draw', event_id=event.id) }}" data-confirm="Supersede draw version {{ active_draw.version }}? Its assignments will no longer be active and prepared distribution packets will be voided.">
+  <h2>Cancel and supersede this draw</h2>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input type="hidden" name="confirm_supersede" value="yes">
+  <label for="supersede-reason">Reason for cancellation / superseding</label>
+  <textarea id="supersede-reason" name="reason" maxlength="2000" required></textarea>
+  <button class="button button-secondary" type="submit">Supersede draw with reason</button>
+</form>
+{% elif event.status == "ready_for_drawing" %}
+<section class="draw-checklist">
+  <h2>Pre-draw checklist</h2>
+  <ul class="draw-check-list">
+  {% for check in report.checks %}
+    <li class="{% if check.passed %}check-passed{% else %}check-failed{% endif %}">
+      <span class="check-icon" aria-hidden="true">{{ "✓" if check.passed else "!" }}</span>
+      <span><strong>{{ check.label }}</strong><br><span class="muted">{{ check.detail }}</span></span>
+      <span class="status">{{ "Ready" if check.passed else "Action required" }}</span>
+    </li>
+  {% endfor %}
+  </ul>
+</section>
+<section class="draw-report">
+  <h2>Validation report</h2>
+  <p>{{ report.approved_count }} approved participant(s) will be included. No assignment mapping is displayed or exposed.</p>
+  {% if report.passed %}
+  <p class="notice" role="status">All checks passed. Review the report before confirming.</p>
+  <form class="form-card compact" method="post" action="{{ url_for('admin.draw', event_id=event.id) }}" data-confirm="Run the centralized district draw for {{ report.approved_count }} approved participants? The finalized assignments will be locked.">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label class="check-row"><input type="checkbox" name="pre_draw_confirmed" value="yes" required><span>I reviewed the checklist and validation report. I confirm this single, centralized district draw.</span></label>
+    <button class="button button-primary" type="submit">Confirm and finalize district draw</button>
+  </form>
+  {% else %}
+  <p class="notice notice-danger" role="alert">The draw is blocked until every failed checklist item is resolved.</p>
+  {% endif %}
+</section>
+{% else %}
+<p class="notice notice-info" role="status">A draw can be prepared only after the event reaches “ready for drawing.” The draw remains locked after finalization unless an administrator explicitly supersedes it with a reason.</p>
+{% endif %}
+{% if draw_history %}
+<section class="table-section">
+  <h2>Draw version history</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Version</th><th>Status</th><th>Participants</th><th>Created</th><th>Reason</th></tr></thead>
+      <tbody>{% for draw in draw_history %}
+        <tr><td>{{ draw.version }}</td><td>{{ draw.status }}</td><td>{{ draw.participant_count }}</td><td>{{ draw.created_at.strftime('%Y-%m-%d %H:%M UTC') }}</td><td>{{ draw.cancel_reason or "—" }}</td></tr>
+      {% endfor %}</tbody>
+    </table>
+  </div>
+</section>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Privacy notice · District Youth Bunotan{% endblock %}
+{% block content %}
+<article class="page-heading privacy-notice">
+  <p class="eyebrow">Privacy notice · version {{ notice_version }}</p>
+  <h1>Your information deserves care</h1>
+  <p class="lead">This notice explains how information is used to run the District Youth Bunotan gift exchange.</p>
+  <section class="notice-section"><h2>What we collect</h2><p>We ask for your name, church, event registration, consent confirmations, and an optional gift preference. The system also creates a private registration reference and PIN. Only a secure Argon2 hash of the PIN is stored.</p></section>
+  <section class="notice-section"><h2>Why we use it</h2><p>Information is used to review registrations, administer the district draw, support event distribution, and help protect the service from misuse. Gift preferences are optional and are not guarantees.</p></section>
+  <section class="notice-section"><h2>Who can see it</h2><p>District administrators manage official records. Church leaders can view submission status only for their own church and cannot see assignments. A participant can reveal only their own recipient after verifying their reference and PIN.</p></section>
+  <section class="notice-section"><h2>Young participants</h2><p>For a participant under 18, registration requires guardian consent. Please do not include sensitive personal details in the optional gift preference.</p></section>
+  <section class="notice-section"><h2>Your choices and questions</h2><p>You may ask about access, correction, or other privacy concerns through your church youth leader or district contact. Ask the organizer how long event records are retained and how to request a deletion after the event.</p></section>
+  <p class="page-note">This exchange notice does not replace the district's full privacy policy or explain retention periods not yet provided here. For contact details, see <a href="{{ url_for('public.contact') }}">Contact</a>.</p>
+</article>
+{% endblock %}

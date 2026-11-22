@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}District Youth Bunotan{% endblock %}
+{% block content %}
+<section class="hero">
+  <p class="eyebrow">Together across our district</p>
+  <h1>A little joy, shared<br>across every church.</h1>
+  <p class="lead">Join the district youth gift exchange. Your recipient stays private until you verify your own registration.</p>
+  <div class="actions">
+    <a class="button button-primary" href="{{ url_for('public.register') }}">Register to participate</a>
+    <a class="button button-secondary" href="{{ url_for('public.lookup') }}">Find my recipient</a>
+  </div>
+</section>
+<section class="welcome-grid" aria-label="Exchange information">
+  <a class="welcome-card" href="{{ url_for('public.mechanics') }}">
+    <span class="eyebrow">01 · The exchange</span>
+    <h2>How it works</h2>
+    <p>See how registration, verification, the district draw, and distribution fit together.</p>
+    <span class="text-link">Explore the mechanics <span aria-hidden="true">→</span></span>
+  </a>
+  <a class="welcome-card" href="{{ url_for('public.gift_guidelines') }}">
+    <span class="eyebrow">02 · Give thoughtfully</span>
+    <h2>Gift guidelines</h2>
+    <p>Keep gifts considerate, suitable, and within the budget announced for your event.</p>
+    <span class="text-link">Read the guide <span aria-hidden="true">→</span></span>
+  </a>
+  <a class="welcome-card" href="{{ url_for('public.faq') }}">
+    <span class="eyebrow">03 · Need a hand?</span>
+    <h2>Common questions</h2>
+    <p>Find answers about your registration, private PIN, and gift preferences.</p>
+    <span class="text-link">Visit the FAQ <span aria-hidden="true">→</span></span>
+  </a>
+</section>
+<section class="privacy-card">
+  <div>
+    <p class="eyebrow">Privacy by design</p>
+    <h2>Your information, handled with care</h2>
+    <p>Only your reference and PIN can reveal your individual recipient. Your PIN is stored as a secure hash, and church leaders never see assignment lists.</p>
+  </div>
+  <a class="button button-secondary" href="{{ url_for('public.privacy') }}">Read the privacy notice</a>
+</section>
+{% endblock %}

@@ -1,0 +1,101 @@
+{% extends "admin/layout.html" %}
+{% block title %}District administration · District Youth Bunotan{% endblock %}
+{% block admin_content %}
+<section class="page-heading">
+  <p class="eyebrow">District administrator</p>
+  <h1>Exchange control room</h1>
+  <p class="lead">Review submissions, manage churches and event settings, and run the district-wide draw. Assignment data is not displayed here.</p>
+</section>
+<section class="metric-grid" aria-label="District overview">
+  <a class="metric-card" href="{{ url_for('admin.all_participants') }}"><span>Participants</span><strong>{{ metrics.participants }}</strong></a>
+  <a class="metric-card" href="{{ url_for('admin.all_participants', status='awaiting_review') }}"><span>Awaiting review</span><strong>{{ metrics.pending }}</strong></a>
+  <a class="metric-card" href="{{ url_for('admin.all_participants', status='approved') }}"><span>Approved</span><strong>{{ metrics.approved }}</strong></a>
+  <a class="metric-card" href="{{ url_for('admin.churches') }}"><span>Active churches</span><strong>{{ metrics.active_churches }}</strong></a>
+  <a class="metric-card" href="#events"><span>Open registrations</span><strong>{{ metrics.open_events }}</strong></a>
+  <a class="metric-card {% if metrics.duplicates %}metric-alert{% endif %}" href="{{ url_for('admin.duplicate_report') }}"><span>Active duplicate records</span><strong>{{ metrics.duplicates }}</strong></a>
+</section>
+<section class="chart-grid" aria-label="Registration and distribution charts">
+  <article class="chart-card">
+    <h2>Registrations by church</h2>
+    <canvas id="church-chart" role="img" aria-label="Registrations by church"></canvas>
+  </article>
+  <article class="chart-card">
+    <h2>Registration statuses</h2>
+    <canvas id="status-chart" role="img" aria-label="Registration status breakdown"></canvas>
+  </article>
+  <article class="chart-card">
+    <h2>Distribution progress</h2>
+    <canvas id="distribution-chart" role="img" aria-label="Acknowledged and pending distribution records"></canvas>
+  </article>
+</section>
+<script id="dashboard-chart-data" type="application/json">{{ chart_data|tojson }}</script>
+<section id="events" class="table-section">
+  <div class="section-heading">
+    <div><p class="eyebrow">Lifecycle control</p><h2>Events</h2></div>
+    <div class="actions">
+      <a class="button button-secondary" href="{{ url_for('admin.reports') }}">Reports</a>
+      <a class="button button-secondary" href="{{ url_for('admin.churches') }}">Manage churches</a>
+    </div>
+  </div>
+  <div class="split-grid">
+    <form class="form-card compact" method="post" action="{{ url_for('admin.create_event') }}">
+      <h3>Create event</h3>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label for="event-name">Event name</label>
+      <input id="event-name" name="name" maxlength="200" required>
+      <label for="event-budget">Gift budget (optional)</label>
+      <input id="event-budget" name="gift_budget" type="number" min="0" max="99999999.99" step="0.01">
+      <button class="button button-primary" type="submit">Create event</button>
+    </form>
+  </div>
+  {% for event in events %}
+  <article class="event-card admin-event-card">
+    <div class="admin-event-summary">
+      <p class="eyebrow">Event · {{ event.status|replace('_',' ') }}</p>
+      <h3>{{ event.name }}</h3>
+      <p class="muted">Gift budget: {{ "₱ " ~ ("%.2f"|format(event.gift_budget)) if event.gift_budget is not none else "Not set" }}</p>
+      <a class="button button-secondary button-small" href="{{ url_for('admin.participants', event_id=event.id) }}">View participants</a>
+    </div>
+    <div class="admin-event-actions">
+      <details class="settings-details">
+        <summary>Edit event settings</summary>
+        <form class="form-card compact" method="post" action="{{ url_for('admin.update_event_settings', event_id=event.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <label for="event-name-{{ event.id }}">Event name</label>
+          <input id="event-name-{{ event.id }}" name="name" maxlength="200" value="{{ event.name }}" required>
+          <label for="event-budget-{{ event.id }}">Gift budget (optional)</label>
+          <input id="event-budget-{{ event.id }}" name="gift_budget" type="number" min="0" max="99999999.99" step="0.01" value="{{ event.gift_budget if event.gift_budget is not none else '' }}">
+          <button class="button button-secondary" type="submit">Save settings</button>
+        </form>
+      </details>
+      {% if event.status in ["ready_for_drawing","drawing_finalized"] %}
+      <a class="button button-primary" href="{{ url_for('admin.draw_preflight', event_id=event.id) }}">{% if event.status == "drawing_finalized" %}View locked draw{% else %}Review pre-draw checklist{% endif %}</a>
+      {% endif %}
+      {% if event.status in ["drawing_finalized","distribution"] %}
+      <a class="button button-secondary" href="{{ url_for('admin.distribution_control', event_id=event.id) }}">Manage distribution packets</a>
+      {% endif %}
+      {% if event.status in ["draft","registration_open","registration_closed","verification","drawing_finalized","distribution","completed"] %}
+      <form class="lifecycle-form" method="post" action="{{ url_for('admin.transition', event_id=event.id) }}" data-confirm="Change this event's lifecycle status?">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label for="status-{{ event.id }}">Next status</label>
+        <select id="status-{{ event.id }}" name="status">
+          {% if event.status == "draft" %}<option value="registration_open">Open registration</option>
+          {% elif event.status == "registration_open" %}<option value="registration_closed">Close registration</option>
+          {% elif event.status == "registration_closed" %}<option value="verification">Begin verification</option>
+          {% elif event.status == "verification" %}<option value="ready_for_drawing">Ready for drawing</option>
+          {% elif event.status == "drawing_finalized" %}<option value="distribution">Begin distribution</option>
+          {% elif event.status == "distribution" %}<option value="completed">Complete event</option>
+          {% elif event.status == "completed" %}<option value="archived">Archive event</option>{% endif %}
+        </select>
+        <button class="button button-secondary" type="submit">Update status</button>
+      </form>
+      {% endif %}
+    </div>
+  </article>
+  {% else %}<p class="empty-state">No events created yet.</p>{% endfor %}
+</section>
+{% endblock %}
+{% block admin_scripts %}
+<script defer src="{{ url_for('static', filename='vendor/chart.umd.min.js') }}"></script>
+<script defer src="{{ url_for('static', filename='js/dashboard-charts.js') }}"></script>
+{% endblock %}

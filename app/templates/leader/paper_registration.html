@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Paper registration form · District Youth Bunotan{% endblock %}
+{% block head %}
+<style>
+  .paper-sheet { max-width: 46rem; margin: 0 auto; padding: 2rem; border: 1px solid var(--line); background: var(--paper); }
+  .paper-field { display: flex; align-items: baseline; gap: .75rem; margin: 1.1rem 0; }
+  .paper-field strong { flex: 0 0 10rem; }
+  .write-line { flex: 1; min-height: 1.8rem; border-bottom: 1px solid var(--ink); }
+  .paper-consent { margin: 1rem 0; padding: 1rem; border: 1px solid var(--line); }
+  .paper-signature { display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem; margin-top: 2rem; }
+  .paper-signature div { min-height: 3.5rem; border-bottom: 1px solid var(--ink); }
+  @media print {
+    @page { margin: 16mm; }
+    .site-header, .site-footer, .skip-link, .no-print { display: none !important; }
+    .site-main { width: auto; min-height: 0; margin: 0; padding: 0; }
+    .paper-sheet { max-width: none; padding: 0; border: 0; box-shadow: none; color: #172a3a; background: #fff; }
+    .paper-sheet h1 { font-size: 1.7rem; }
+    .paper-consent { break-inside: avoid; }
+  }
+</style>
+{% endblock %}
+{% block content %}
+<div class="page-heading no-print">
+  <p class="eyebrow">Church youth leader</p>
+  <h1>Printable paper registration</h1>
+  <p class="lead">Print one copy per participant. Transfer the details securely into the church portal and keep the paper form protected.</p>
+  <button class="button button-primary" type="button" onclick="window.print()">Print this form</button>
+</div>
+<article class="paper-sheet">
+  <p class="eyebrow">District Youth Bunotan</p>
+  <h1>Participant registration form</h1>
+  <p>Complete one form for each participant. Do not write a registration PIN or gift assignment on this form.</p>
+  <div class="paper-field"><strong>Church</strong><span>{{ church.name }}</span></div>
+  <div class="paper-field"><strong>Event</strong><span class="write-line"></span></div>
+  <div class="paper-field"><strong>Participant's full name</strong><span class="write-line"></span></div>
+  <div class="paper-field"><strong>Optional gift preference</strong><span class="write-line"></span></div>
+  <p class="form-note">Please do not include sensitive personal information in a gift preference.</p>
+  <div class="paper-consent">
+    <p><strong>Participation and privacy</strong></p>
+    <p>I confirm that the participant has agreed to join and has been provided the District Youth Bunotan privacy notice. I understand the information is used to administer this event, district administrators manage official records, and church leaders can view only their own church's submission status.</p>
+    <p>Participant confirmation: □ Yes</p>
+  </div>
+  <div class="paper-consent">
+    <p><strong>For participants under 18</strong></p>
+    <p>Participant is under 18: □ Yes &nbsp; □ No</p>
+    <p>I am the participant's parent or guardian and consent to their registration in this event.</p>
+    <p>Guardian consent: □ Yes</p>
+    <div class="paper-signature">
+      <div>Parent/guardian name and signature</div>
+      <div>Date</div>
+    </div>
+  </div>
+  <div class="paper-signature">
+    <div>Participant name and signature</div>
+    <div>Date</div>
+  </div>
+  <p class="form-note">This paper form is for registration only; the district draw and assignments remain private.</p>
+</article>
+{% endblock %}

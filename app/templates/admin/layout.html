@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="admin-layout">
+  <button class="admin-nav-toggle" type="button" aria-expanded="false" aria-controls="admin-sidebar">
+    <i data-lucide="menu" aria-hidden="true"></i> Administration menu
+  </button>
+  <button class="admin-nav-overlay" type="button" aria-label="Close administration menu" hidden></button>
+  <aside id="admin-sidebar" class="admin-sidebar" aria-label="Administration">
+    <button class="admin-nav-close" type="button"><i data-lucide="x" aria-hidden="true"></i> Close menu</button>
+    <p class="admin-sidebar-title">District office</p>
+    <nav aria-label="Administration navigation">
+      <a href="{{ url_for('admin.dashboard') }}" {% if request.endpoint == "admin.dashboard" %}aria-current="page"{% endif %}><i data-lucide="layout-dashboard" aria-hidden="true"></i>Overview</a>
+      <a href="{{ url_for('admin.reports') }}" {% if request.endpoint in ["admin.reports", "admin.export_report", "admin.export_assignments"] %}aria-current="page"{% endif %}><i data-lucide="chart-no-axes-combined" aria-hidden="true"></i>Reports</a>
+      <a href="{{ url_for('admin.all_participants') }}" {% if request.endpoint in ["admin.all_participants", "admin.participants"] %}aria-current="page"{% endif %}><i data-lucide="users-round" aria-hidden="true"></i>Participants</a>
+      <a href="{{ url_for('admin.duplicate_report') }}" {% if request.endpoint == "admin.duplicate_report" %}aria-current="page"{% endif %}><i data-lucide="copy-check" aria-hidden="true"></i>Duplicates</a>
+      <a href="{{ url_for('admin.churches') }}" {% if request.endpoint == "admin.churches" %}aria-current="page"{% endif %}><i data-lucide="church" aria-hidden="true"></i>Churches</a>
+      <a href="{{ url_for('admin.dashboard') }}#events"><i data-lucide="calendar-days" aria-hidden="true"></i>Events</a>
+      <a href="{{ url_for('admin.users') }}" {% if request.endpoint == "admin.users" %}aria-current="page"{% endif %}><i data-lucide="user-cog" aria-hidden="true"></i>Staff &amp; leaders</a>
+      <a href="{{ url_for('admin.audit') }}" {% if request.endpoint == "admin.audit" %}aria-current="page"{% endif %}><i data-lucide="clipboard-list" aria-hidden="true"></i>Audit log</a>
+    </nav>
+  </aside>
+  <section class="admin-workspace">
+    {% block admin_content %}{% endblock %}
+  </section>
+</div>
+{% endblock %}
+{% block scripts %}
+<script defer src="{{ url_for('static', filename='js/admin.js') }}"></script>
+{% block admin_scripts %}{% endblock %}
+{% endblock %}

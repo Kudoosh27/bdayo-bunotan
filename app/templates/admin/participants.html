@@ -1,0 +1,95 @@
+{% extends "admin/layout.html" %}
+{% block title %}Participants · District Youth Bunotan{% endblock %}
+{% block admin_content %}
+<section class="page-heading">
+  <p class="eyebrow">{% if event %}{{ event.name }} · {{ event.status|replace('_',' ') }}{% else %}District-wide registration records{% endif %}</p>
+  <h1>Participants</h1>
+  <p class="lead">Search and review registration records. Assignments are never shown in participant management.</p>
+</section>
+<form class="form-card compact participant-filters" method="get" action="{{ url_for('admin.participants', event_id=event.id) if event else url_for('admin.all_participants') }}">
+  <div class="filter-grid">
+    {% if not event %}
+    <div><label for="filter-event">Event</label><select id="filter-event" name="event_id"><option value="">All events</option>{% for item in events %}<option value="{{ item.id }}" {% if filters.event_id == item.id|string %}selected{% endif %}>{{ item.name }}</option>{% endfor %}</select></div>
+    {% endif %}
+    <div><label for="filter-church">Church</label><select id="filter-church" name="church_id"><option value="">All churches</option>{% for church in churches %}<option value="{{ church.id }}" {% if filters.church_id == church.id|string %}selected{% endif %}>{{ church.name }}</option>{% endfor %}</select></div>
+    <div><label for="filter-status">Status</label><select id="filter-status" name="status"><option value="">All statuses</option><option value="awaiting_review" {% if filters.status == "awaiting_review" %}selected{% endif %}>Awaiting review</option>{% for status in ["pending","under_review","approved","rejected","withdrawn"] %}<option value="{{ status }}" {% if filters.status == status %}selected{% endif %}>{{ status|replace('_',' ')|title }}</option>{% endfor %}</select></div>
+    <div><label for="filter-search">Participant name</label><input id="filter-search" name="q" maxlength="120" value="{{ filters.q }}" placeholder="Search by name"></div>
+  </div>
+  <label class="check-row"><input type="checkbox" name="duplicates" value="1" {% if filters.duplicates %}checked{% endif %}><span>Show active duplicate records only</span></label>
+  <div class="actions"><button class="button button-primary" type="submit">Apply filters</button><a class="button button-secondary" href="{{ url_for('admin.participants', event_id=event.id) if event else url_for('admin.all_participants') }}">Clear filters</a></div>
+</form>
+{% if truncated %}<p class="notice notice-info" role="status">Showing the most recent 500 matching records. Narrow your filters to find another submission.</p>{% endif %}
+<div class="table-wrap">
+  <table class="participant-admin-table">
+    <thead><tr><th>Participant</th><th>Event / church</th><th>Status</th><th>Submitted</th><th>Review and history</th></tr></thead>
+    <tbody>
+    {% for person in participants %}
+      <tr>
+        <td>
+          <strong>{{ person.full_name }}</strong>
+          {% if (person.event_id, person.church_id, person.name_key) in duplicate_keys %}<span class="status status-warning">Duplicate</span>{% endif %}
+          {% if person.gift_preference %}<details class="record-details"><summary>Gift preference</summary><p>{{ person.gift_preference }}</p></details>{% endif %}
+        </td>
+        <td>{{ person.event.name }}<br><span class="muted">{{ person.church.name }}</span></td>
+        <td><span class="status">{{ person.status|replace('_',' ') }}</span></td>
+        <td>{{ person.created_at.strftime('%Y-%m-%d') }}</td>
+        <td>
+          {% set person_event = person.event %}
+          {% if person_event.status == "verification" and person.status in ["pending","under_review"] %}
+          <details class="record-details"><summary>Approve or reject</summary>
+            <form class="inline" method="post" action="{{ url_for('admin.review_participant', participant_id=person.id) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="return_to" value="{{ request.full_path }}">
+              <button class="button button-small button-primary" name="status" value="approved" type="submit" data-confirm="Approve this participant?">Approve</button>
+              <button class="button button-small button-secondary" name="status" value="rejected" type="submit" data-confirm="Reject this participant?">Reject</button>
+            </form>
+          </details>
+          {% endif %}
+          {% if person_event.status not in ["drawing_finalized","distribution","completed","archived"] and person_event.id not in finalized_event_ids and person.status != "withdrawn" %}
+          <details class="record-details"><summary>Correct registration</summary>
+            <form class="form-card compact" method="post" action="{{ url_for('admin.correct_participant', participant_id=person.id) }}" data-confirm="Save these participant corrections? Corrections are recorded in the audit log.">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="return_to" value="{{ request.full_path }}">
+              <label for="name-{{ person.id }}">Participant name</label><input id="name-{{ person.id }}" name="full_name" value="{{ person.full_name }}" maxlength="200" required>
+              <label for="preference-{{ person.id }}">Gift preference (optional)</label><input id="preference-{{ person.id }}" name="gift_preference" value="{{ person.gift_preference or '' }}" maxlength="500">
+              <label for="correction-reason-{{ person.id }}">Correction reason</label><input id="correction-reason-{{ person.id }}" name="reason" maxlength="2000" required>
+              <button class="button button-small button-secondary" type="submit">Save correction</button>
+            </form>
+          </details>
+          {% endif %}
+          {% if person.status in ["pending","under_review","approved"] and person_event.status not in ["distribution","completed","archived"] %}
+          <details class="record-details"><summary>Withdraw participant</summary>
+            <form class="form-card compact" method="post" action="{{ url_for('admin.withdraw', event_id=person.event_id, participant_id=person.id) }}" data-confirm="{% if person_event.status == 'drawing_finalized' %}Withdraw this participant and supersede the entire draw? A new draw version will be created.{% else %}Withdraw this participant?{% endif %}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="return_to" value="{{ request.full_path }}">
+              <label for="withdraw-reason-{{ person.id }}">Withdrawal reason</label><input id="withdraw-reason-{{ person.id }}" name="reason" maxlength="2000" required>
+              <button class="button button-small button-secondary" type="submit">{% if person_event.status == "drawing_finalized" %}Withdraw and redraw{% else %}Withdraw{% endif %}</button>
+            </form>
+          </details>
+          {% endif %}
+          {% if person.status in ["pending","under_review","approved"] %}
+          <details class="record-details"><summary>Reset lookup PIN</summary>
+            <form class="form-card compact" method="post" action="{{ url_for('admin.reset_participant_credential', participant_id=person.id) }}" data-confirm="Invalidate the current PIN and create a new one-time PIN? The new credentials will be shown only once.">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <label for="reset-reason-{{ person.id }}">Reset reason</label><input id="reset-reason-{{ person.id }}" name="reason" maxlength="2000" required>
+              <button class="button button-small button-secondary" type="submit">Reset PIN</button>
+            </form>
+          </details>
+          {% endif %}
+          <details class="record-details">
+            <summary>Status history ({{ histories.get(person.id, [])|length }})</summary>
+            {% set person_history = histories.get(person.id, []) %}
+            {% if person_history %}
+            <ul class="history-list">
+              {% for item in person_history %}
+              <li><strong>{{ item.new_status|replace('_',' ') }}</strong> · {{ item.created_at.strftime('%Y-%m-%d %H:%M UTC') }}<br><span class="muted">From {{ item.previous_status|replace('_',' ') if item.previous_status else "new registration" }}{% if item.changed_by %} · {{ item.changed_by.username }}{% endif %}{% if item.reason %} · {{ item.reason }}{% endif %}</span></li>
+              {% endfor %}
+            </ul>
+            {% else %}<p class="muted">No status changes recorded.</p>{% endif %}
+          </details>
+        </td>
+      </tr>
+    {% else %}
+      <tr><td colspan="5">No submissions match these filters.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

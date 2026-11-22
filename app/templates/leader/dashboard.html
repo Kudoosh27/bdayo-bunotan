@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}Church portal · District Youth Bunotan{% endblock %}
+{% block content %}
+<section class="page-heading">
+  <p class="eyebrow">Church youth leader</p>
+  <h1>Your submissions</h1>
+  <p class="lead">You can submit participants and see their review status for your church. Assignments are never shown here.</p>
+  <p><a href="{{ url_for('leader.paper_registration') }}">Print a paper registration form</a></p>
+  {% if not events %}<p class="notice notice-info" role="status">No events are currently accepting registrations.</p>{% endif %}
+</section>
+{% if credentials %}
+<section class="credential-card" aria-live="polite">
+  <h2>Share credentials with the participant</h2>
+  <p>These are shown once. The PIN is not stored in readable form.</p>
+  <dl class="credential-list">
+    <div><dt>Reference</dt><dd>{{ credentials.reference }}</dd></div>
+    <div><dt>PIN</dt><dd>{{ credentials.pin }}</dd></div>
+  </dl>
+</section>
+{% endif %}
+{% if credentials_list %}
+<section class="credential-card" aria-live="polite">
+  <h2>One-time participant credentials</h2>
+  <p>Save and securely deliver this list. It will not be available again after you leave this page.</p>
+  <div class="table-wrap"><table><thead><tr><th>Name</th><th>Reference</th><th>PIN</th></tr></thead><tbody>
+  {% for item in credentials_list %}<tr><td>{{ item.name }}</td><td>{{ item.reference }}</td><td>{{ item.pin }}</td></tr>{% endfor %}
+  </tbody></table></div>
+</section>
+{% endif %}
+<div class="split-grid">
+  <form class="form-card" method="post" action="{{ url_for('leader.submit') }}">
+    <h2>Submit one participant</h2>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label for="event_id">Event</label>
+    <select id="event_id" name="event_id" required>
+      {% for event in events %}<option value="{{ event.id }}">{{ event.name }}</option>{% else %}<option value="" selected disabled>No open event</option>{% endfor %}
+    </select>
+    <label for="full_name">Full name</label>
+    <input id="full_name" name="full_name" maxlength="200" required>
+    <label class="check-row"><input type="checkbox" name="participation_confirmed" value="yes" required><span>The participant has confirmed these details and agreed to participate.</span></label>
+    <label class="check-row"><input type="checkbox" name="is_minor" value="yes"><span>The participant is under 18.</span></label>
+    <label class="check-row"><input type="checkbox" name="guardian_consent" value="yes"><span>Guardian consent has been obtained (required for participants under 18).</span></label>
+    <label class="check-row"><input type="checkbox" name="privacy_consent" value="yes" required><span>The privacy notice was provided and consent was obtained.</span></label>
+    <button class="button button-primary" type="submit" {% if not events %}disabled{% endif %}>Submit participant</button>
+  </form>
+  <form id="leader-import-form" class="form-card" method="post" enctype="multipart/form-data" action="{{ url_for('leader.preview_import') }}">
+    <h2>Import a participant list</h2>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label for="import_event">Event</label>
+    <select id="import_event" name="event_id" required>
+      {% for event in events %}<option value="{{ event.id }}">{{ event.name }}</option>{% else %}<option value="" selected disabled>No open event</option>{% endfor %}
+    </select>
+    <label for="file">CSV file (maximum 2 MB)</label>
+    <input id="file" name="file" type="file" accept=".csv,text/csv" required>
+    <label class="check-row"><input type="checkbox" name="participation_confirmed" value="yes" required><span>Each participant has confirmed their details and agreed to participate.</span></label>
+    <label class="check-row"><input type="checkbox" name="privacy_consent" value="yes" required><span>The privacy notice was provided and consent was obtained for every row.</span></label>
+    <p class="form-note">Use the fixed headers <code>full_name</code>, <code>is_minor</code>, <code>guardian_consent</code>, in that order. Enter yes/no values; minors require guardian consent. Obtain each participant's agreement and privacy consent before upload.</p>
+    <p class="form-note">Download the <a href="{{ url_for('leader.import_template', file_format='csv') }}">UTF-8 CSV template</a>. Preview before submitting; only valid, nonduplicate rows are submitted as pending.</p>
+    <button class="button button-secondary" type="submit" {% if not events %}disabled{% endif %}>Preview import</button>
+  </form>
+</div>
+<section id="import-preview" class="import-preview" aria-live="polite" aria-atomic="false" hidden>
+  <div class="preview-heading">
+    <div>
+      <p class="eyebrow">Review before submitting</p>
+      <h2 id="import-preview-title">Import preview</h2>
+    </div>
+    <p id="import-preview-summary" role="status"></p>
+  </div>
+  <p id="import-preview-message" class="notice notice-info" role="status"></p>
+  <div id="import-credentials" class="credential-card" hidden></div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Row</th><th>Participant</th><th>Result</th><th>Validation messages</th></tr></thead>
+      <tbody id="import-preview-rows"></tbody>
+    </table>
+  </div>
+  <div class="actions">
+    <button id="confirm-import" class="button button-primary" type="button" disabled>Submit eligible rows as pending</button>
+    <button id="download-import-report" class="button button-secondary" type="button" hidden>Download error report</button>
+  </div>
+</section>
+<section class="table-section">
+  <h2>Submission status</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Participant</th><th>Event</th><th>Status</th><th>Submitted</th></tr></thead>
+    <tbody id="leader-submissions">{% for person in submissions %}
+      <tr><td>{{ person.full_name }}</td><td>{{ person.event.name }}</td><td><span class="status">{{ person.status|replace('_',' ') }}</span></td><td>{{ person.created_at.strftime('%Y-%m-%d') }}</td></tr>
+    {% else %}<tr data-empty-submissions><td colspan="4">No submissions yet.</td></tr>{% endfor %}</tbody>
+  </table></div>
+</section>
+{% endblock %}
+{% block scripts %}
+<script defer src="{{ url_for('static', filename='js/leader-import.js') }}"></script>
+{% endblock %}

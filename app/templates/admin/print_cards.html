@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% if single_card %}Assignment card{% else %}Church packet{% endif %} · {{ event.name }}</title>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+      color: #172a3a;
+      background: #e9e5dc;
+      font-synthesis: none;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    .print-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      max-width: 62rem;
+      margin: 1.5rem auto;
+      padding: 1rem 1.25rem;
+      border: 1px solid #d5cfbf;
+      border-radius: .75rem;
+      background: #fffdf8;
+    }
+    .print-toolbar p { margin: 0; }
+    .print-button {
+      border: 0;
+      border-radius: .5rem;
+      padding: .75rem 1rem;
+      color: #fff;
+      background: #2f5c4d;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .print-button:focus-visible { outline: 3px solid #b38b45; outline-offset: 3px; }
+    .assignment-card {
+      width: 100%;
+      max-width: 62rem;
+      min-height: 277mm;
+      margin: 1rem auto;
+      padding: 12mm;
+      border: 1px dashed #b38b45;
+      background: #faf6ed;
+      break-after: page;
+      page-break-after: always;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .assignment-card:last-child { break-after: auto; page-break-after: auto; }
+    .district-mark { margin: 0 0 1.5rem; color: #b38b45; font-size: .75rem; font-weight: 800; letter-spacing: .14em; }
+    .outside-label {
+      min-height: 65mm;
+      padding: 1.5rem;
+      border-radius: .75rem;
+      color: #fff;
+      background: #172a3a;
+    }
+    .outside-label h1 { margin: 0 0 1.5rem; font-size: 1rem; letter-spacing: .08em; }
+    .giver-name { margin: 0; overflow-wrap: anywhere; font-size: clamp(1.7rem, 5vw, 2.8rem); font-weight: 750; }
+    .fold-line {
+      margin: 1.25rem 0;
+      border-top: 2px dashed #b38b45;
+      color: #2f5c4d;
+      font-size: .72rem;
+      font-weight: 800;
+      letter-spacing: .08em;
+      text-align: center;
+      text-transform: uppercase;
+    }
+    .fold-line span { position: relative; top: -.65rem; padding: 0 .75rem; background: #faf6ed; }
+    .confidential-insert {
+      min-height: 145mm;
+      padding: 1.5rem;
+      border: 2px solid #b38b45;
+      border-radius: .75rem;
+      background: #fffdf8;
+    }
+    .confidential-insert h2 { margin: 0 0 .5rem; color: #2f5c4d; font-size: 1rem; letter-spacing: .06em; }
+    .warning { margin: 0 0 2rem; color: #58656a; font-size: .85rem; }
+    .recipient-label { margin: 0 0 .35rem; font-size: .85rem; font-weight: 700; }
+    .recipient-name { margin: 0 0 2rem; overflow-wrap: anywhere; color: #2f5c4d; font-size: clamp(1.6rem, 4vw, 2.4rem); font-weight: 750; }
+    .credentials { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 2rem; }
+    .credential { min-width: 0; padding: 1rem; border-radius: .5rem; background: #f2eee5; }
+    .credential dt { margin-bottom: .35rem; color: #58656a; font-size: .75rem; font-weight: 700; text-transform: uppercase; }
+    .credential dd { margin: 0; overflow-wrap: anywhere; font-size: 1.2rem; font-weight: 800; letter-spacing: .06em; }
+    .cut-note { margin: 1rem 0 0; color: #58656a; font-size: .75rem; text-align: center; }
+    @media (max-width: 40rem) {
+      .print-toolbar { align-items: flex-start; flex-direction: column; margin: .75rem; }
+      .assignment-card { min-height: 0; margin: .75rem; padding: 1rem; width: auto; }
+      .outside-label, .confidential-insert { min-height: 0; padding: 1rem; }
+    }
+    @page { size: A4; margin: 10mm; }
+    @media print {
+      :root, body { background: #fff; }
+      .print-toolbar { display: none; }
+      .assignment-card {
+        width: 100%;
+        max-width: none;
+        height: 277mm;
+        min-height: 0;
+        margin: 0;
+        padding: 8mm;
+        border-radius: 0;
+        box-shadow: none;
+      }
+      .outside-label, .confidential-insert { break-inside: avoid; }
+      .recipient-name { font-size: 22pt; }
+      .giver-name { font-size: 25pt; }
+    }
+  </style>
+</head>
+<body>
+  <header class="print-toolbar">
+    <p><strong>{% if single_card %}Confidential assignment card{% else %}Confidential church packet{% endif %}</strong><br>
+      {{ church.name }} · {{ event.name }} · Draw version {{ batch.draw.version }} · Packet v{{ batch.version }}</p>
+    <button class="print-button" type="button" onclick="window.print()">Print / Save as PDF</button>
+  </header>
+  <main>
+    {% for card in cards %}
+    <article class="assignment-card" aria-label="Confidential assignment for {{ card.giver }}">
+      <p class="district-mark">DISTRICT YOUTH BUNOTAN</p>
+      <section class="outside-label" aria-labelledby="giver-label-{{ loop.index }}">
+        <h1 id="giver-label-{{ loop.index }}">OUTSIDE LABEL · GIVER</h1>
+        <p class="giver-name">{{ card.giver }}</p>
+      </section>
+      <p class="fold-line"><span>Fold here · seal confidential insert inside</span></p>
+      <section class="confidential-insert" aria-labelledby="insert-label-{{ loop.index }}">
+        <h2 id="insert-label-{{ loop.index }}">CONFIDENTIAL INSERT · FOR THE GIVER ONLY</h2>
+        <p class="warning">Keep this information private. Do not leave the insert visible outside the envelope.</p>
+        <p class="recipient-label">Your secret recipient</p>
+        <p class="recipient-name">{{ card.recipient }}</p>
+        <dl class="credentials">
+          <div class="credential"><dt>Private reference</dt><dd>{{ card.reference }}</dd></div>
+          <div class="credential"><dt>PIN</dt><dd class="pin">{{ card.pin }}</dd></div>
+        </dl>
+      </section>
+      <p class="cut-note">Cut around the page, fold at the marked line, and seal before distribution.</p>
+    </article>
+    {% endfor %}
+  </main>
+</body>
+</html>

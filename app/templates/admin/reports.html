@@ -1,0 +1,95 @@
+{% extends "admin/layout.html" %}
+{% block title %}Reports · District Youth Bunotan{% endblock %}
+{% block admin_content %}
+<section class="page-heading">
+  <p class="eyebrow">District reports</p>
+  <h1>Reports and exports</h1>
+  <p class="lead">Review registration, church, draw-validation, distribution, withdrawal, and audit reports. Assignment exports contain confidential giver-recipient pairings and are available only to district administrators.</p>
+</section>
+<form class="form-card compact report-filter" method="get" action="{{ url_for('admin.reports') }}">
+  <label for="report-event">Select event</label>
+  <select id="report-event" name="event_id" required>
+    <option value="">Choose an event</option>
+    {% for event in events %}
+    <option value="{{ event.id }}" {% if report_data and report_data.event.id == event.id %}selected{% endif %}>{{ event.name }} · {{ event.status|replace('_',' ') }}</option>
+    {% endfor %}
+  </select>
+  <button class="button button-primary" type="submit">View reports</button>
+</form>
+<section class="report-downloads">
+  <h2>Audit report</h2>
+  <p>The audit report contains up to 1,000 most recent sensitive-action records.</p>
+  <div class="actions">
+    <a class="button button-secondary" href="{{ url_for('admin.audit') }}">View audit log</a>
+    <a class="button button-secondary" href="{{ url_for('admin.export_report', report_name='audit') }}">Download audit CSV</a>
+  </div>
+</section>
+{% if report_data %}
+{% set event = report_data.event %}
+<section class="report-downloads">
+  <h2>{{ event.name }} · available exports</h2>
+  <div class="report-link-grid">
+    <a class="button button-secondary" href="{{ url_for('admin.export_report', report_name='masterlist', event_id=event.id) }}">Masterlist CSV</a>
+    <a class="button button-secondary" href="{{ url_for('admin.export_report', report_name='church-summary', event_id=event.id) }}">Church summary CSV</a>
+    <a class="button button-secondary" href="{{ url_for('admin.export_report', report_name='drawing-validation', event_id=event.id) }}">Drawing validation CSV</a>
+    <a class="button button-secondary" href="{{ url_for('admin.export_report', report_name='distribution-status', event_id=event.id) }}">Distribution status CSV</a>
+    <a class="button button-secondary" href="{{ url_for('admin.export_report', report_name='withdrawals', event_id=event.id) }}">Withdrawals CSV</a>
+    {% if report_data.validation.draw_version and report_data.validation.passed %}
+    <a class="button button-danger" href="{{ url_for('admin.export_assignments', event_id=event.id) }}" data-confirm="Download confidential giver-recipient assignments? Store the export securely and delete it when no longer needed.">Confidential assignment export CSV</a>
+    {% endif %}
+  </div>
+</section>
+
+<section class="report-section">
+  <div class="section-heading"><h2>Masterlist</h2><span class="muted">{{ report_data.masterlist|length }} registration(s)</span></div>
+  <div class="table-wrap">
+    <table><thead><tr><th>Church</th><th>Participant</th><th>Status</th><th>Submitted</th></tr></thead>
+      <tbody>{% for participant, church_name in report_data.masterlist %}
+        <tr><td>{{ church_name }}</td><td>{{ participant.full_name }}</td><td>{{ participant.status }}</td><td>{{ participant.created_at.strftime('%Y-%m-%d %H:%M UTC') }}</td></tr>
+      {% else %}<tr><td colspan="4">No registrations.</td></tr>{% endfor %}</tbody>
+    </table>
+  </div>
+</section>
+
+<section class="report-section">
+  <div class="section-heading"><h2>Church summary</h2><a href="{{ url_for('admin.export_report', report_name='church-summary', event_id=event.id) }}">Download CSV</a></div>
+  <div class="table-wrap">
+    <table><thead><tr><th>Church</th><th>Total</th><th>Approved</th><th>Pending</th><th>Rejected</th><th>Withdrawn</th></tr></thead>
+      <tbody>{% for row in report_data.church_summary %}
+        <tr><td>{{ row.name }}</td><td>{{ row.total }}</td><td>{{ row.approved }}</td><td>{{ row.pending }}</td><td>{{ row.rejected }}</td><td>{{ row.withdrawn }}</td></tr>
+      {% else %}<tr><td colspan="6">No churches.</td></tr>{% endfor %}</tbody>
+    </table>
+  </div>
+</section>
+
+<section class="report-section">
+  <div class="section-heading"><h2>Drawing validation</h2><span class="status">{% if report_data.validation.passed %}Passed{% else %}Action required{% endif %}</span></div>
+  {% if report_data.validation.draw_version %}<p>Active draw version {{ report_data.validation.draw_version }} · assignment validation recorded as {{ "passed" if report_data.validation.passed else "failed" }}.</p>{% endif %}
+  <ul class="report-check-list">{% for check in report_data.validation.checks %}
+    <li><strong>{{ check.label }}</strong><span>{{ "Passed" if check.passed else "Needs action" }}</span><span class="muted">{{ check.detail }}</span></li>
+  {% endfor %}</ul>
+</section>
+
+<section class="report-section">
+  <div class="section-heading"><h2>Distribution status</h2><a href="{{ url_for('admin.export_report', report_name='distribution-status', event_id=event.id) }}">Download CSV</a></div>
+  <div class="table-wrap">
+    <table><thead><tr><th>Draw</th><th>Church</th><th>Packet</th><th>Status</th><th>Printed</th><th>Distributed</th><th>Acknowledged</th></tr></thead>
+      <tbody>{% for batch, church_name, draw_version, record_count, acknowledged_count, pending_count in report_data.distribution %}
+        <tr><td>v{{ draw_version }}</td><td>{{ church_name }}</td><td>v{{ batch.version }} · {{ record_count }} records</td><td>{{ batch.status }}</td><td>{{ batch.print_count }} print(s)</td><td>{{ batch.distributed_at.strftime('%Y-%m-%d %H:%M UTC') if batch.distributed_at else "—" }}</td><td>{{ acknowledged_count }} / {{ record_count }}{% if pending_count %} ({{ pending_count }} pending){% endif %}</td></tr>
+      {% else %}<tr><td colspan="7">No distribution packets have been generated.</td></tr>{% endfor %}</tbody>
+    </table>
+  </div>
+</section>
+
+<section class="report-section">
+  <div class="section-heading"><h2>Withdrawals</h2><a href="{{ url_for('admin.export_report', report_name='withdrawals', event_id=event.id) }}">Download CSV</a></div>
+  <div class="table-wrap">
+    <table><thead><tr><th>Participant</th><th>Church</th><th>When</th><th>Reason</th></tr></thead>
+      <tbody>{% for history, participant, church_name in report_data.withdrawals %}
+        <tr><td>{{ participant.full_name }}</td><td>{{ church_name }}</td><td>{{ history.created_at.strftime('%Y-%m-%d %H:%M UTC') }}</td><td>{{ history.reason or "—" }}</td></tr>
+      {% else %}<tr><td colspan="4">No withdrawals recorded.</td></tr>{% endfor %}</tbody>
+    </table>
+  </div>
+</section>
+{% endif %}
+{% endblock %}

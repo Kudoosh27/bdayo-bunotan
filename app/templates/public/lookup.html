@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}My Secret Assignment · District Youth Bunotan{% endblock %}
+{% block content %}
+<section class="page-heading">
+  <p class="eyebrow">Private assignment lookup</p>
+  <h1>My Secret Assignment</h1>
+  <p class="lead">Enter the reference and PIN you received during registration. Do not share your PIN.</p>
+</section>
+<form class="form-card narrow" method="post">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <label for="reference">Registration reference</label>
+  <input id="reference" name="reference" maxlength="20" autocomplete="off" value="{{ reference or '' }}" required>
+  <label for="pin">Private PIN</label>
+  <input id="pin" name="pin" type="password" inputmode="numeric" minlength="6" maxlength="6" autocomplete="new-password" required>
+  <button class="button button-primary" type="submit">Verify and reveal recipient</button>
+</form>
+{% if result %}
+<section class="result-card" aria-live="polite">
+  <p class="eyebrow">{{ result.event }}</p>
+  <h2>Your assigned recipient is</h2>
+  <p class="recipient-name">{{ result.recipient }}</p>
+  <p>You may verify again later with the same reference and PIN. Keep this assignment private.</p>
+</section>
+{% endif %}
+{% endblock %}
