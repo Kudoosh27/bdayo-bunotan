@@ -5,9 +5,18 @@ from functools import wraps
 
 from flask import abort, current_app, request
 from sqlalchemy import case, delete, select
-from sqlalchemy.dialects.sqlite import insert
 
 from ..models import RateLimitAttempt, db
+
+
+def _insert_for_dialect(table, dialect_name):
+    if dialect_name == "postgresql":
+        from sqlalchemy.dialects.postgresql import insert
+    elif dialect_name == "sqlite":
+        from sqlalchemy.dialects.sqlite import insert
+    else:
+        raise RuntimeError(f"Unsupported database dialect for rate limits: {dialect_name}")
+    return insert(table)
 
 
 def rate_limit_key(namespace, identity):
@@ -61,7 +70,7 @@ def consume_rate_limit(namespace, identity, maximum, window_seconds, lock_second
         else_=None,
     )
     statement = (
-        insert(RateLimitAttempt)
+        _insert_for_dialect(RateLimitAttempt, db.engine.dialect.name)
         .values(key=key, window_start=now, count=1)
         .on_conflict_do_update(
             index_elements=[RateLimitAttempt.key],
@@ -109,7 +118,7 @@ def record_rate_limit_failure(
         else_=None,
     )
     statement = (
-        insert(RateLimitAttempt)
+        _insert_for_dialect(RateLimitAttempt, db.engine.dialect.name)
         .values(
             key=key,
             window_start=now,

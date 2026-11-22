@@ -98,6 +98,25 @@ def test_init_db_creates_schema_version_and_enables_sqlite_foreign_keys(app):
             connection.close()
 
 
+def test_rate_limit_upsert_compiles_for_postgresql(app):
+    from sqlalchemy.dialects.postgresql import dialect as postgresql_dialect
+
+    from app.services.rate_limits import _insert_for_dialect
+
+    statement = (
+        _insert_for_dialect(RateLimitAttempt, "postgresql")
+        .values(key="rate-limit-test", window_start=datetime.now(timezone.utc), count=1)
+        .on_conflict_do_update(
+            index_elements=[RateLimitAttempt.key],
+            set_={"count": RateLimitAttempt.count + 1},
+        )
+        .returning(RateLimitAttempt.locked_until)
+    )
+    compiled = str(statement.compile(dialect=postgresql_dialect()))
+    assert "ON CONFLICT (key) DO UPDATE" in compiled
+    assert "RETURNING rate_limit_attempts.locked_until" in compiled
+
+
 def test_home_uses_self_hosted_frontend_assets(client):
     response = client.get("/")
     assert response.status_code == 200
