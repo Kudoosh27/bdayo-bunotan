@@ -151,6 +151,35 @@ def _register_cli(app):
         password = click.prompt("Password", hide_input=True, confirmation_prompt=True)
         create_account(username, role, church_id, password)
 
+    @app.cli.command("bootstrap-demo-admin")
+    def bootstrap_demo_admin():
+        if os.environ.get("BUNOTAN_DEMO_ADMIN_BOOTSTRAP") != "1":
+            raise click.ClickException(
+                "Demo admin bootstrap is disabled. Set "
+                "BUNOTAN_DEMO_ADMIN_BOOTSTRAP=1 only for a disposable demo."
+            )
+        username = os.environ.get("BUNOTAN_DEMO_ADMIN_USERNAME", "").strip()
+        password = os.environ.get("BUNOTAN_DEMO_ADMIN_PASSWORD", "")
+        if not username or not password:
+            raise click.ClickException(
+                "Set BUNOTAN_DEMO_ADMIN_USERNAME and "
+                "BUNOTAN_DEMO_ADMIN_PASSWORD in the environment."
+            )
+        if len(password) < 12:
+            raise click.ClickException(
+                "The demo admin password must be at least 12 characters."
+            )
+        existing = User.query.filter_by(username=username).first()
+        if existing:
+            if existing.role != "admin":
+                raise click.ClickException(
+                    "The configured demo username is already used by a non-admin account."
+                )
+            click.echo("Demo admin already exists; no changes made.")
+            return
+        create_account(username, "admin", None, password)
+        click.echo("Disposable demo admin created.")
+
     @app.cli.command("reset-all-credentials")
     @click.option(
         "--confirm-reset",

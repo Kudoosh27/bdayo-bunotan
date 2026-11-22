@@ -42,10 +42,37 @@ Use one web-service instance and do not enable autoscaling or multiple worker
 processes. SQLite on the disk is not suitable for a horizontally scaled
 deployment. If your Render service plan does not support persistent disks,
 stop here rather than using the ephemeral filesystem for participant data.
-After the first deploy, use Render Shell to run
+On a paid plan, after the first deploy use Render Shell to run
 `flask --app app:create_app init-db` and `flask --app app:create_app
 create-admin` with the same environment. `seed-demo --confirm-demo` is for
 testing only.
+
+#### Disposable Free-plan demo only
+
+Free services do not provide persistent disks or an interactive shell. For
+temporary UI/admin testing only, remove `DATABASE_URL` and `PRIVATE_STORAGE_DIR`
+if they point to `/var/data`, then set these Render environment variables:
+
+```text
+BUNOTAN_DEMO_ADMIN_BOOTSTRAP=1
+BUNOTAN_DEMO_ADMIN_USERNAME=<your-demo-admin-username>
+BUNOTAN_DEMO_ADMIN_PASSWORD=<a-unique-random-password-of-at-least-12-characters>
+```
+
+Use this **Start Command** instead:
+
+```bash
+flask --app app:create_app init-db && flask --app app:create_app bootstrap-demo-admin && gunicorn --config gunicorn.conf.py 'app:create_app()'
+```
+
+The bootstrap command is disabled by default, creates only an admin account,
+does not print its password, and does not change an existing admin password.
+Keep the bootstrap environment variables configured for the disposable Free
+demo: after Render loses its ephemeral database on spin-down or redeploy, the
+start command recreates the schema and admin. All users, events, and other data
+can still be lost. Do not enter real participant information, and use a unique
+password that is not used for any other account. Remove the bootstrap variables
+and restore the normal Start Command when no longer needed.
 
 The local print assets and templates need to be included in the repository.
 Check the deployment after launch: test registration, login, a page reload,

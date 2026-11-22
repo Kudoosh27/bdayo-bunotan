@@ -2253,6 +2253,36 @@ def test_clear_demo_removes_only_seeded_data_and_private_packets(app, tmp_path):
     assert "No seeded DEMO event was found" in repeated.output
 
 
+def test_demo_admin_bootstrap_is_opt_in_and_idempotent(app, monkeypatch):
+    runner = CliRunner()
+    disabled = runner.invoke(app.cli, ["bootstrap-demo-admin"])
+    assert disabled.exit_code != 0
+    with app.app_context():
+        assert User.query.count() == 0
+
+    monkeypatch.setenv("BUNOTAN_DEMO_ADMIN_BOOTSTRAP", "1")
+    monkeypatch.setenv("BUNOTAN_DEMO_ADMIN_USERNAME", "render-demo-admin")
+    monkeypatch.setenv("BUNOTAN_DEMO_ADMIN_PASSWORD", "long-demo-password-123")
+    created = runner.invoke(app.cli, ["bootstrap-demo-admin"])
+    assert created.exit_code == 0, created.output
+    assert "Disposable demo admin created" in created.output
+    assert "long-demo-password-123" not in created.output
+    with app.app_context():
+        user = User.query.filter_by(username="render-demo-admin").one()
+        assert user.role == "admin"
+        assert user.active
+        assert user.check_password("long-demo-password-123")
+        original_hash = user.password_hash
+
+    repeated = runner.invoke(app.cli, ["bootstrap-demo-admin"])
+    assert repeated.exit_code == 0, repeated.output
+    assert "already exists" in repeated.output
+    with app.app_context():
+        assert User.query.filter_by(username="render-demo-admin").count() == 1
+        assert User.query.filter_by(username="render-demo-admin").one().password_hash == original_hash
+        assert AuditLog.query.filter_by(action="user_created").count() == 1
+
+
 def test_argon2_hashes_cannot_be_verified_with_the_new_hasher(app):
     with app.app_context():
         legacy = User(
