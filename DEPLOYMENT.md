@@ -14,6 +14,18 @@ out of the repository. For a live site, use a Python-capable host that provides
 HTTPS and a persistent local disk, and follow the single-instance requirements
 below.
 
+### Vercel
+
+Vercel supports Flask as a Python Function. This repository includes `index.py`
+and a `pyproject.toml` entrypoint setting so Vercel can locate the WSGI app.
+Set `SECRET_KEY` in Vercel's environment settings before deploying. However,
+this app is **not ready for real data on Vercel**: its SQLite database and
+private packet files require persistent local storage, and its static assets
+are served from `app/static/`. Deploying the function alone does not provide
+the storage and static-file behavior this app expects. Use a host with a
+persistent local disk, or redesign the database, private-file, and static-asset
+storage before using Vercel.
+
 ## 1. Host and application
 
 Use a maintained Linux host, Python 3.12, a dedicated operating-system account,
