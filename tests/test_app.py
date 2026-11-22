@@ -870,6 +870,119 @@ def test_admin_church_management_and_leader_assignment_are_audited(app, client):
         assert original_church.active is True
 
 
+def test_admin_can_create_church_leader_with_scoped_access_and_audit(app, client):
+    with app.app_context():
+        _, church, _ = _seed_event()
+        admin = User(username="leader-create-admin", role="admin")
+        admin.set_password("district-password")
+        db.session.add(admin)
+        db.session.commit()
+        church_id = str(church.id)
+    _login(client, "leader-create-admin", "district-password")
+
+    page = client.get("/admin/users")
+    assert b"Add a church leader" in page.data
+    response = client.post(
+        "/admin/users",
+        data={
+            "username": "new-church-leader",
+            "church_id": church_id,
+            "password": "temporary-password-123",
+            "password_confirmation": "temporary-password-123",
+        },
+        follow_redirects=True,
+    )
+    assert response.status_code == 200
+    assert b"Church leader account created" in response.data
+    with app.app_context():
+        leader = User.query.filter_by(username="new-church-leader").one()
+        assert leader.role == "leader"
+        assert str(leader.church_id) == church_id
+        assert leader.active
+        assert leader.check_password("temporary-password-123")
+        assert "temporary-password-123" not in leader.password_hash
+        creation_audit = AuditLog.query.filter_by(action="user_created").one()
+        assert creation_audit.details == {
+            "role": "leader",
+            "church_id": church_id,
+            "source": "admin_ui",
+        }
+        assert "temporary-password-123" not in str(creation_audit.details)
+
+
+def test_admin_leader_creation_rejects_bad_password_and_duplicate_username(app, client):
+    with app.app_context():
+        _, church, _ = _seed_event()
+        existing = User(username="already-used-leader", role="leader", church_id=church.id)
+        existing.set_password("existing-password")
+        admin = User(username="leader-validation-admin", role="admin")
+        admin.set_password("district-password")
+        db.session.add_all([existing, admin])
+        db.session.commit()
+        church_id = str(church.id)
+    _login(client, "leader-validation-admin", "district-password")
+
+    short_password = client.post(
+        "/admin/users",
+        data={
+            "username": "short-password-leader",
+            "church_id": church_id,
+            "password": "short",
+            "password_confirmation": "short",
+        },
+        follow_redirects=True,
+    )
+    assert b"at least 12 characters" in short_password.data
+    mismatch = client.post(
+        "/admin/users",
+        data={
+            "username": "mismatch-leader",
+            "church_id": church_id,
+            "password": "a-long-password-123",
+            "password_confirmation": "a-different-password-123",
+        },
+        follow_redirects=True,
+    )
+    assert b"confirmation does not match" in mismatch.data
+    duplicate = client.post(
+        "/admin/users",
+        data={
+            "username": "already-used-leader",
+            "church_id": church_id,
+            "password": "a-long-password-123",
+            "password_confirmation": "a-long-password-123",
+        },
+        follow_redirects=True,
+    )
+    assert b"username is already in use" in duplicate.data
+    with app.app_context():
+        assert User.query.count() == 2
+        assert AuditLog.query.filter_by(action="leader_creation_rejected").count() == 3
+
+
+def test_leader_cannot_create_staff_accounts(app, client):
+    with app.app_context():
+        _, church, _ = _seed_event()
+        leader = User(username="staff-create-leader", role="leader", church_id=church.id)
+        leader.set_password("leader-password")
+        db.session.add(leader)
+        db.session.commit()
+        church_id = str(church.id)
+    _login(client, "staff-create-leader", "leader-password")
+    response = client.post(
+        "/admin/users",
+        data={
+            "username": "unauthorized-new-leader",
+            "church_id": church_id,
+            "password": "a-long-password-123",
+            "password_confirmation": "a-long-password-123",
+        },
+    )
+    assert response.status_code == 403
+    with app.app_context():
+        assert User.query.filter_by(username="unauthorized-new-leader").count() == 0
+
+
 def test_admin_participant_filters_correction_duplicate_guard_and_withdrawal(app, client):
     with app.app_context():
         event, church, people = _seed_event("registration_open", ["Ari Santos", "Bea Santos"])

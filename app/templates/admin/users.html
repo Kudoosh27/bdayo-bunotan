@@ -4,8 +4,24 @@
 <section class="page-heading">
   <p class="eyebrow">Access management</p>
   <h1>Staff and church leaders</h1>
-  <p class="lead">Create accounts with <code>flask create-admin</code> or <code>flask create-user</code>. Reassign existing leader accounts to an active church and manage staff access here.</p>
+  <p class="lead">Add church leaders, reassign their church scope, and manage staff access. Leader passwords are entered here and stored only as secure hashes.</p>
 </section>
+<form class="form-card compact admin-create-card" method="post" action="{{ url_for('admin.create_leader') }}">
+  <h2>Add a church leader</h2>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <label for="leader-username">Username</label>
+  <input id="leader-username" name="username" maxlength="120" autocomplete="username" required>
+  <label for="leader-church">Church</label>
+  <select id="leader-church" name="church_id" required {% if not churches %}disabled{% endif %}>
+    {% for church in churches %}<option value="{{ church.id }}">{{ church.name }}</option>{% else %}<option value="" selected disabled>No active churches</option>{% endfor %}
+  </select>
+  <label for="leader-password">Password</label>
+  <input id="leader-password" name="password" type="password" minlength="12" maxlength="1024" autocomplete="new-password" required>
+  <label for="leader-password-confirmation">Confirm password</label>
+  <input id="leader-password-confirmation" name="password_confirmation" type="password" minlength="12" maxlength="1024" autocomplete="new-password" required>
+  <p class="form-note">Use a temporary password of at least 12 characters and share it with the leader securely.</p>
+  <button class="button button-primary" type="submit" {% if not churches %}disabled{% endif %}>Add leader</button>
+</form>
 <div class="table-wrap">
   <table>
     <thead><tr><th>Username</th><th>Role</th><th>Church scope</th><th>Access</th></tr></thead>

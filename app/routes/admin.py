@@ -675,6 +675,75 @@ def users():
     return render_template("admin/users.html", users=rows, churches=churches)
 
 
+@bp.post("/users")
+@admin_required
+def create_leader():
+    username = request.form.get("username", "").strip()
+    password = request.form.get("password", "")
+    password_confirmation = request.form.get("password_confirmation", "")
+    try:
+        church_id = uuid.UUID(request.form.get("church_id", ""))
+    except (ValueError, TypeError):
+        church_id = None
+
+    reason = None
+    church = db.session.get(Church, church_id) if church_id else None
+    if not username or len(username) > 120:
+        reason = "invalid_username"
+        message = "Username must contain 1 to 120 characters."
+    elif User.query.filter_by(username=username).first():
+        reason = "username_in_use"
+        message = "That username is already in use."
+    elif not church or not church.active:
+        reason = "invalid_church"
+        message = "Select an active church for this leader."
+    elif len(password) < 12:
+        reason = "password_too_short"
+        message = "Password must be at least 12 characters."
+    elif len(password) > 1024:
+        reason = "password_too_long"
+        message = "Password must be 1024 characters or fewer."
+    elif password != password_confirmation:
+        reason = "password_mismatch"
+        message = "The password confirmation does not match."
+    if reason:
+        _audit_rejected(
+            "leader_creation_rejected",
+            "user",
+            details={"reason_code": reason},
+        )
+        flash(message, "danger")
+        return redirect(url_for("admin.users"))
+
+    user = User(username=username, role="leader", church_id=church.id)
+    user.set_password(password)
+    try:
+        db.session.add(user)
+        db.session.flush()
+        record_audit(
+            "user_created",
+            "user",
+            user.id,
+            {"role": "leader", "church_id": str(church.id), "source": "admin_ui"},
+        )
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        _audit_rejected(
+            "leader_creation_rejected",
+            "user",
+            details={"reason_code": "username_in_use"},
+        )
+        flash("That username is already in use.", "danger")
+        return redirect(url_for("admin.users"))
+    except Exception:
+        db.session.rollback()
+        raise
+
+    flash("Church leader account created.", "success")
+    return redirect(url_for("admin.users"))
+
+
 @bp.post("/users/<uuid:user_id>/access")
 @admin_required
 def update_user_access(user_id):
