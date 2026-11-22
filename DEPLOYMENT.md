@@ -14,6 +14,45 @@ out of the repository. For a live site, use a Python-capable host that provides
 HTTPS and a persistent local disk, and follow the single-instance requirements
 below.
 
+### Render setup
+
+The reported build completed successfully. The service exited because its
+Start Command was `gunicorn.conf.py`, which is a configuration file, not a
+command. In Render's **Settings → Build & Deploy**, set:
+
+- **Root Directory:** the directory containing `requirements.txt` (if the
+  project files are in the repository root, leave this blank).
+- **Build Command:** `pip install -r requirements.txt`
+- **Start Command:** `gunicorn --config gunicorn.conf.py 'app:create_app()'`
+
+The Gunicorn configuration reads Render's `PORT` environment variable and
+binds to `0.0.0.0`. The repository's `.python-version` requests Python 3.12.
+In Render **Environment**, set `SECRET_KEY` to a long randomly generated
+secret, `APP_ENV` to `production`, and `SESSION_COOKIE_SECURE` to `1`.
+
+This app must use a **persistent disk** for SQLite and private packet files.
+Attach a Render disk mounted at `/var/data`, then set:
+
+```text
+DATABASE_URL=sqlite:////var/data/bunotan.db
+PRIVATE_STORAGE_DIR=/var/data/private
+```
+
+Use one web-service instance and do not enable autoscaling or multiple worker
+processes. SQLite on the disk is not suitable for a horizontally scaled
+deployment. If your Render service plan does not support persistent disks,
+stop here rather than using the ephemeral filesystem for participant data.
+After the first deploy, use Render Shell to run
+`flask --app app:create_app init-db` and `flask --app app:create_app
+create-admin` with the same environment. `seed-demo --confirm-demo` is for
+testing only.
+
+The local print assets and templates need to be included in the repository.
+Check the deployment after launch: test registration, login, a page reload,
+and packet generation; restart or redeploy and confirm data still exists.
+Do not use real participant data until persistent storage, HTTPS, and backups
+have been confirmed.
+
 ### Vercel
 
 Vercel supports Flask as a Python Function. This repository includes `index.py`
@@ -53,7 +92,7 @@ a reference only; the application does not require or depend on a `.env` file.
 | `LOOKUP_LOCK_MINUTES` | Choose a reasonable lockout duration; default is 15. |
 | `PRIVACY_NOTICE_VERSION` | Set this to the district-approved privacy notice version. |
 | `PUBLIC_CONTACT_EMAIL` | Set a monitored privacy/help contact for participants. |
-| `GUNICORN_BIND` | Keep Gunicorn on loopback behind the HTTPS reverse proxy, for example `127.0.0.1:8000`. |
+| `GUNICORN_BIND` | Optional bind override; defaults to `0.0.0.0:$PORT` (or port 8000 locally). |
 | `GUNICORN_TRUSTED_PROXIES` | Trust only the proxy addresses that set forwarding headers. |
 | `GUNICORN_THREADS` | A small thread count is sufficient; the default is 4. |
 

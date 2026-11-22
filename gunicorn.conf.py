@@ -1,7 +1,10 @@
 import os
 
 
-bind = os.environ.get("GUNICORN_BIND", "127.0.0.1:8000")
+bind = os.environ.get(
+    "GUNICORN_BIND",
+    f"0.0.0.0:{os.environ.get('PORT', '8000')}",
+)
 workers = 1
 worker_class = "gthread"
 threads = int(os.environ.get("GUNICORN_THREADS", "4"))
