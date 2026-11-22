@@ -1,6 +1,6 @@
-# Production deployment guide
+﻿# Production deployment guide
 
-This guide covers a single-instance Flask deployment using SQLite. Ask the
+This guide covers Flask deployments using PostgreSQL on Render + Neon or SQLite on a single-instance host. Ask the
 district's Data Protection Officer to review the privacy notice, consent
 process, retention schedule, and operational access before using real
 participant data.
@@ -14,72 +14,24 @@ out of the repository. For a live site, use a Python-capable host that provides
 HTTPS and a persistent local disk, and follow the single-instance requirements
 below.
 
-### Render setup
+### Render + Neon setup
 
-The reported build completed successfully. The service exited because its
-Start Command was `gunicorn.conf.py`, which is a configuration file, not a
-command. In Render's **Settings → Build & Deploy**, set:
+Use Neon PostgreSQL for persistent production data. In Render **Settings → Build & Deploy**, set:
 
-- **Root Directory:** the directory containing `requirements.txt` (if the
-  project files are in the repository root, leave this blank).
+- **Root Directory:** the directory containing `requirements.txt`.
 - **Build Command:** `pip install -r requirements.txt`
 - **Start Command:** `gunicorn --config gunicorn.conf.py 'app:create_app()'`
 
-The Gunicorn configuration reads Render's `PORT` environment variable and
-binds to `0.0.0.0`. The repository's `.python-version` requests Python 3.12.
-In Render **Environment**, set `SECRET_KEY` to a long randomly generated
-secret, `APP_ENV` to `production`, and `SESSION_COOKIE_SECURE` to `1`.
+The Gunicorn configuration reads Render's `PORT` and binds to `0.0.0.0`. The repository requests Python 3.12. In Render **Environment**, set:
 
-This app must use a **persistent disk** for SQLite and private packet files.
-Attach a Render disk mounted at `/var/data`, then set:
+- `DATABASE_URL`: paste the Neon PostgreSQL connection URL (pooled or direct). The app uses psycopg, removes `channel_binding` if present, and enforces `sslmode=require`.
+- `SECRET_KEY`: a long randomly generated secret.
+- `APP_ENV=production` and `SESSION_COOKIE_SECURE=1`.
+- `ADMIN_USERNAME` and `ADMIN_PASSWORD`: set these for the first startup to create the first admin. Use a unique password of at least 12 characters.
 
-```text
-DATABASE_URL=sqlite:////var/data/bunotan.db
-PRIVATE_STORAGE_DIR=/var/data/private
-```
+Startup runs idempotent `db.create_all()` and creates an admin only if none exists. It does not drop tables or seed demo records. Remove `ADMIN_PASSWORD` from Render after the initial account is created; changing these variables will never overwrite an existing admin. Demo rows can only be added by explicitly running `flask seed-demo --confirm-demo` against a non-production database.
 
-Use one web-service instance and do not enable autoscaling or multiple worker
-processes. SQLite on the disk is not suitable for a horizontally scaled
-deployment. If your Render service plan does not support persistent disks,
-stop here rather than using the ephemeral filesystem for participant data.
-On a paid plan, after the first deploy use Render Shell to run
-`flask --app app:create_app init-db` and `flask --app app:create_app
-create-admin` with the same environment. `seed-demo --confirm-demo` is for
-testing only.
-
-#### Disposable Free-plan demo only
-
-Free services do not provide persistent disks or an interactive shell. For
-temporary UI/admin testing only, remove `DATABASE_URL` and `PRIVATE_STORAGE_DIR`
-if they point to `/var/data`, then set these Render environment variables:
-
-```text
-BUNOTAN_DEMO_ADMIN_BOOTSTRAP=1
-BUNOTAN_DEMO_ADMIN_USERNAME=<your-demo-admin-username>
-BUNOTAN_DEMO_ADMIN_PASSWORD=<a-unique-random-password-of-at-least-12-characters>
-```
-
-Use this **Start Command** instead:
-
-```bash
-flask --app app:create_app init-db && flask --app app:create_app bootstrap-demo-admin && gunicorn --config gunicorn.conf.py 'app:create_app()'
-```
-
-The bootstrap command is disabled by default, creates only an admin account,
-does not print its password, and does not change an existing admin password.
-Keep the bootstrap environment variables configured for the disposable Free
-demo: after Render loses its ephemeral database on spin-down or redeploy, the
-start command recreates the schema and admin. All users, events, and other data
-can still be lost. Do not enter real participant information, and use a unique
-password that is not used for any other account. Remove the bootstrap variables
-and restore the normal Start Command when no longer needed.
-
-The local print assets and templates need to be included in the repository.
-Check the deployment after launch: test registration, login, a page reload,
-and packet generation; restart or redeploy and confirm data still exists.
-Do not use real participant data until persistent storage, HTTPS, and backups
-have been confirmed.
-
+After deployment, sign in and visit `/admin/health`. The admin-only JSON response includes `database_dialect` and `participant_count`; confirm the dialect is `postgresql`. Register a test participant, restart or redeploy the service, then confirm the registration remains. The route never returns the connection URL. Use Neon backups and restore points for recovery.
 ### Vercel
 
 Vercel supports Flask as a Python Function. This repository includes `index.py`
@@ -111,7 +63,7 @@ a reference only; the application does not require or depend on a `.env` file.
 | Variable | Production guidance |
 | --- | --- |
 | `SECRET_KEY` | Supply a long random secret through a protected secret manager. Never commit or log it. |
-| `DATABASE_URL` | Use the default `sqlite:///instance/bunotan.db` unless a protected local path is needed. Do not put the database on a network filesystem. |
+| `DATABASE_URL` | Required in production. Render should use the Neon PostgreSQL connection URL. Local development defaults to `sqlite:///instance/bunotan.db`. |
 | `APP_ENV` | Set to `production`; production also enables secure session cookies. |
 | `SESSION_COOKIE_SECURE` | Set to `1` when HTTPS is enabled. |
 | `PRIVATE_STORAGE_DIR` | Optional protected directory outside `app/static/`; restrict it to the service account. |
@@ -123,8 +75,8 @@ a reference only; the application does not require or depend on a `.env` file.
 | `GUNICORN_TRUSTED_PROXIES` | Trust only the proxy addresses that set forwarding headers. |
 | `GUNICORN_THREADS` | A small thread count is sufficient; the default is 4. |
 
-Initialize the database and create the first administrator as a release
-operation, not from each web worker:
+For a traditional single-instance SQLite host, startup creates tables. You may
+also initialize explicitly and create an administrator interactively:
 
 ```bash
 flask --app app:create_app init-db
@@ -135,11 +87,9 @@ The administrator command prompts for the password. Do not put passwords in
 command arguments, scripts, or source. `seed-demo --confirm-demo` is for
 explicitly confirmed non-production databases only.
 
-The application stores rate-limit counters in SQLite and relies on SQLite
-locking and transactions for draw atomicity. Run **one Gunicorn worker process
-and one application instance**; do not scale this app horizontally or run
-multiple Gunicorn workers against the same SQLite database. A few Gunicorn
-threads are supported.
+SQLite deployments store rate-limit counters in SQLite and rely on SQLite
+locking and transactions for draw atomicity. Run one instance with the local
+SQLite database. PostgreSQL deployments can use Neon and psycopg.
 
 ## 2. HTTPS and Gunicorn
 

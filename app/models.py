@@ -78,6 +78,7 @@ class Participant(db.Model):
             "name_key",
             unique=True,
             sqlite_where=db.text("status in ('pending','under_review','approved')"),
+            postgresql_where=db.text("status in ('pending','under_review','approved')"),
         ),
         CheckConstraint(
             "status in ('pending','under_review','approved','rejected','withdrawn')",

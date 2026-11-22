@@ -5,6 +5,7 @@ from flask import (
     Blueprint,
     abort,
     flash,
+    jsonify,
     redirect,
     render_template,
     request,
@@ -61,6 +62,17 @@ from ..services.rate_limits import clear_rate_limit_attempt
 bp = Blueprint("admin", __name__)
 PARTICIPANT_STATUSES = {"pending", "under_review", "approved", "rejected", "withdrawn"}
 ACTIVE_PARTICIPANT_STATUSES = {"pending", "under_review", "approved"}
+
+
+@bp.get("/health")
+@admin_required
+def health():
+    return jsonify(
+        database_dialect=db.engine.dialect.name,
+        participant_count=Participant.query.count(),
+    )
+
+
 @bp.get("/")
 @admin_required
 def dashboard():

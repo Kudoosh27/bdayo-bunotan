@@ -23,15 +23,16 @@ def create_app(config=None):
     db.init_app(app)
     with app.app_context():
         engine = db.engine
+        if engine.dialect.name == "sqlite":
+            @sqlalchemy_event.listens_for(engine, "connect")
+            def enable_sqlite_pragmas(connection, _connection_record):
+                cursor = connection.cursor()
+                cursor.execute("PRAGMA foreign_keys=ON")
+                cursor.execute("PRAGMA journal_mode=WAL")
+                cursor.close()
 
-        @sqlalchemy_event.listens_for(engine, "connect")
-        def enable_sqlite_pragmas(connection, _connection_record):
-            if engine.dialect.name != "sqlite":
-                return
-            cursor = connection.cursor()
-            cursor.execute("PRAGMA foreign_keys=ON")
-            cursor.execute("PRAGMA journal_mode=WAL")
-            cursor.close()
+        db.create_all()
+        _ensure_first_admin()
 
     @app.before_request
     def load_session_user():
@@ -75,6 +76,25 @@ def create_app(config=None):
     return app
 
 
+def _ensure_first_admin():
+    username = os.environ.get("ADMIN_USERNAME", "").strip()
+    password = os.environ.get("ADMIN_PASSWORD", "")
+    if not username or not password or User.query.filter_by(role="admin").first():
+        return
+    if len(username) > 120 or len(password) < 12:
+        raise RuntimeError("ADMIN_USERNAME must be at most 120 characters and ADMIN_PASSWORD at least 12 characters")
+    admin = User(username=username, role="admin")
+    admin.set_password(password)
+    db.session.add(admin)
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        # Multiple workers may race on the first boot; a committed admin is enough.
+        if not User.query.filter_by(role="admin").first():
+            raise
+
+
 def _register_cli(app):
     import click
     from .models import (
@@ -96,7 +116,7 @@ def _register_cli(app):
         if db.session.get(SchemaVersion, 1) is None:
             db.session.add(SchemaVersion(id=1, version=1))
             db.session.commit()
-        click.echo("SQLite database initialized (schema version 1).")
+        click.echo(f"{db.engine.dialect.name} database initialized (schema version 1).")
 
     def create_account(username, role, church_id, password):
         if not username.strip() or len(username.strip()) > 120:
